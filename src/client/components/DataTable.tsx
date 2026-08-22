@@ -124,6 +124,8 @@ export default function DataTable({
         pagination={
           rows
             ? {
+                // 显式指定分页器 size（否则会继承表格的 small，显得局促）
+                size: 'medium',
                 current: rows.page,
                 pageSize: rows.pageSize,
                 total: rows.total,
