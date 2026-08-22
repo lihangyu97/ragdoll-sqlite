@@ -34,16 +34,18 @@ export default function App() {
   // 初始加载：表/视图清单 + 全部表字段（一次请求），并自动选中第一个
   useEffect(() => {
     apiFetch<TableSchemaEntry[]>('/api/tables')
-      .then((list) => {
+      .then(list => {
         // 防御：旧版服务端进程不返回 columns，导致页面白屏，给明确提示
-        if (!list.every((s) => Array.isArray(s.columns))) {
-          setTablesError('服务端响应缺少表字段信息。可能是旧的服务进程仍在运行，请先停止旧的 ragdoll-sqlite 再重新启动。')
+        if (!list.every(s => Array.isArray(s.columns))) {
+          setTablesError(
+            '服务端响应缺少表字段信息。可能是旧的服务进程仍在运行，请先停止旧的 ragdoll-sqlite 再重新启动。'
+          )
           return
         }
         setSchemas(list)
         if (list.length > 0) setSelected(list[0].name)
       })
-      .catch((err) => setTablesError((err as Error).message))
+      .catch(err => setTablesError((err as Error).message))
   }, [])
 
   const selectTable = useCallback((name: string) => {
@@ -59,12 +61,12 @@ export default function App() {
     if (!selected) return
     const seq = ++infoSeq.current
     apiFetch<TableInfo>(`/api/tables/${encodeURIComponent(selected)}`)
-      .then((data) => {
+      .then(data => {
         if (seq !== infoSeq.current) return // 过期响应，丢弃
         setDataError(null)
         setInfo(data)
       })
-      .catch((err) => {
+      .catch(err => {
         if (seq !== infoSeq.current) return
         setDataError((err as Error).message)
       })
@@ -76,12 +78,12 @@ export default function App() {
     const seq = ++rowsSeq.current
     setLoadingRows(true)
     apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, { page, pageSize })
-      .then((data) => {
+      .then(data => {
         if (seq !== rowsSeq.current) return
         setDataError(null)
         setRows(data)
       })
-      .catch((err) => {
+      .catch(err => {
         if (seq !== rowsSeq.current) return
         setDataError((err as Error).message)
       })
@@ -107,7 +109,7 @@ export default function App() {
     )
   }
 
-  const selectedSchema = schemas.find((s) => s.name === selected) ?? null
+  const selectedSchema = schemas.find(s => s.name === selected) ?? null
   // 行数：加载中显示 …，优先取分页结果（已含 total），详情接口返回前再取 rowCount
   const rowCountText = loadingRows
     ? '…'
@@ -122,7 +124,7 @@ export default function App() {
       <Sider
         width={240}
         collapsedWidth={80}
-        theme="dark"
+        theme="light"
         collapsible
         collapsed={collapsed}
         trigger={null}
@@ -130,7 +132,7 @@ export default function App() {
       >
         <div className="sider-logo">
           <img src="/favicon.svg" alt="ragdoll-sqlite" className="sider-logo-icon" />
-          {!collapsed && <span className="sider-logo-title">ragdoll-sqlite</span>}
+          {!collapsed && <span className="sider-logo-title">RagdollSqlite</span>}
         </div>
         <TableList tables={schemas} selected={selected} onSelect={selectTable} />
         <div
@@ -181,13 +183,13 @@ export default function App() {
                       loading={loadingRows}
                       onPageChange={handlePageChange}
                     />
-                  ),
+                  )
                 },
                 {
                   key: 'structure',
                   label: '结构',
-                  children: <StructureTable columns={selectedSchema.columns} info={info} />,
-                },
+                  children: <StructureTable columns={selectedSchema.columns} info={info} />
+                }
               ]}
             />
           </>

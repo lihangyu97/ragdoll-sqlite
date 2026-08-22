@@ -18,7 +18,7 @@ export default function TableList({ tables, selected, onSelect }: TableListProps
   }
   return (
     <Menu
-      theme="dark"
+      theme="light"
       mode="inline"
       selectedKeys={selected ? [selected] : []}
       defaultOpenKeys={['tables']}
@@ -28,7 +28,7 @@ export default function TableList({ tables, selected, onSelect }: TableListProps
           key: 'tables',
           icon: <DatabaseOutlined />,
           label: '表与视图',
-          children: tables.map((t) => ({
+          children: tables.map(t => ({
             key: t.name,
             icon: t.type === 'view' ? <EyeOutlined /> : <TableOutlined />,
             label: (
@@ -40,9 +40,9 @@ export default function TableList({ tables, selected, onSelect }: TableListProps
                   </Tag>
                 )}
               </span>
-            ),
-          })),
-        },
+            )
+          }))
+        }
       ]}
     />
   )

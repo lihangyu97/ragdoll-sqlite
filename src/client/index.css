@@ -15,6 +15,14 @@ body,
   overflow: hidden;
 }
 
+/* sider 内部纵向布局：logo 固定顶部、菜单弹性占满（表多时内部滚动）、触发器贴底 */
+.app-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
 /* 顶部 logo 区 */
 .sider-logo {
   display: flex;
@@ -40,6 +48,7 @@ body,
 .sider-logo-title {
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--ant-layout-header-color);
 }
 
 /* 折叠时 logo 区只显示图标并居中 */
@@ -48,11 +57,12 @@ body,
   padding: 0;
 }
 
-/* 菜单占满中间区域，表多时内部滚动 */
+/* 菜单占满中间区域，表多时内部滚动；预留滚动条轨道避免出现/消失时跳动闪烁 */
 .app-sider .ant-menu {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 .menu-item-label {
@@ -95,7 +105,9 @@ body,
   cursor: pointer;
   flex-shrink: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  transition: color 0.2s, background 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s;
 }
 
 .sider-trigger:hover {
@@ -106,6 +118,8 @@ body,
 .app-content {
   padding: 16px 20px;
   overflow: auto;
+  /* 预留滚动条轨道：内容高度波动时滚动条出现/消失不再引起宽度跳动 */
+  scrollbar-gutter: stable;
 }
 
 .table-header {
