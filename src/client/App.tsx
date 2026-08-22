@@ -23,7 +23,7 @@ export default function App() {
   const [info, setInfo] = useState<TableInfo | null>(null)
   const [rows, setRows] = useState<RowsResult | null>(null)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
   const [loadingRows, setLoadingRows] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
