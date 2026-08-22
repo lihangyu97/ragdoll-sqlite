@@ -1,8 +1,8 @@
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons'
 import { Button, Form, Input, InputNumber, Modal, Select, Space } from 'antd'
 import { useEffect, useMemo } from 'react'
-import { queryableColumns } from '../columnUtils.js'
-import type { ColumnInfo, FilterCondition, FilterOperator } from '../../shared/types.js'
+import { queryableColumns } from '@/views/table/TableView/columnUtils'
+import type { ColumnInfo, FilterCondition, FilterOperator } from '@shared/types'
 
 interface FilterModalProps {
   open: boolean

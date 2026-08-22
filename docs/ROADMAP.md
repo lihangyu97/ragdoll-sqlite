@@ -63,7 +63,8 @@
 
 ## 其他已讨论、未定稿的规划
 
-- **顶部历史页签栏**：打开过的表/视图做成可切换、可关闭的页签（antd `Tabs editable-card`），纯 state 实现，不需要 router
-- **URL 直达**：`?view=&table=&tab=` 参数同步（读 + `replaceState`），不引入 router；若需跨重启可书签，配套"固定端口 + 稳定 token（按 db 路径派生）"
+- **路由（已实现 ✅）**：引入 react-router（HashRouter），路由表为 `/table?table=`（表数据页，表/视图共用 `TableView`，`?table=` 参数决定查哪张表）、`/home`（主页）、`/query`（查询）；token 留在 hash 外的 `?t=` 中不受路由影响；hash 路由无需服务端 SPA fallback。实现时顺带修复：表名含 `/` 时 API 路径解码 bug（改为按编码路径匹配、捕获组再解码）
+- **顶部历史页签栏**：打开过的表/视图做成可切换、可关闭的页签（antd `Tabs editable-card`）；基于现有路由，每开一个表 = 一个 `#/table?table=<name>` URL，天然支持
+- **URL 直达（已实现 ✅）**：`#/table?table=<name>`；若需跨重启可书签，配套"固定端口 + 稳定 token（按 db 路径派生）"
 - **SQL 查询控制台**：「查询」菜单占位页，后续接编辑器 + 服务端只读 SELECT 接口（沿用防注入模型）
 - **主页图表**：「主页」菜单占位页，后续接图表

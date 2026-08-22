@@ -53,16 +53,21 @@ pnpm dev:server -- ./data/app.db
 RAGDOLL_DB=./data/app.db pnpm dev:server
 ```
 
+前端路径别名（仅前端使用，服务端保持相对导入；`vite.config.ts` 与 `tsconfig.json` 两处需保持一致）：
+
+- `@/*` → `src/client/*`
+- `@shared/*` → `src/shared/*`
+
 ## 技术栈
 
-| 层     | 选型                                                       |
-| ------ | ---------------------------------------------------------- |
-| 语言   | TypeScript（strict）                                       |
-| SQLite | `better-sqlite3`（只读模式）                               |
-| 服务端 | Node 内置 `node:http`（静态托管 + REST API，无第三方框架） |
-| 前端   | React 19 + antd v6 + Vite（前后端分离 SPA，无 SSR）        |
-| 测试   | Node 内置 `node:test`                                      |
-| 包管理 | pnpm                                                       |
+| 层     | 选型                                                                             |
+| ------ | -------------------------------------------------------------------------------- |
+| 语言   | TypeScript（strict）                                                             |
+| SQLite | `better-sqlite3`（只读模式）                                                     |
+| 服务端 | Node 内置 `node:http`（静态托管 + REST API，无第三方框架）                       |
+| 前端   | React 19 + antd v6 + Vite + react-router（HashRouter）（前后端分离 SPA，无 SSR） |
+| 测试   | Node 内置 `node:test`                                                            |
+| 包管理 | pnpm                                                                             |
 
 ## 目录结构
 
@@ -76,11 +81,17 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 │   │   ├── http.ts         # node:http 服务器 + token 校验 + 静态托管
 │   │   ├── db.ts           # better-sqlite3 只读封装（探活/元数据/分页/序列化/行数缓存）
 │   │   └── api.ts          # REST API 处理器
-│   ├── client/             # 前端 SPA（React 19 + antd v6）
-│   │   ├── App.tsx          # 布局组装 + 表清单预取
-│   │   ├── useTableData.ts  # 选中表的数据获取 hook（详情/分页/序号守卫）
-│   │   ├── api.ts           # API 请求封装（token + 超时）
-│   │   └── components/      # 展示组件：TableList / DataTable / StructureTable / CellValue
+│   ├── client/             # 前端 SPA（React 19 + antd v6 + react-router）
+│   │   ├── App.tsx          # 布局组装 + 表清单预取 + 路由表
+│   │   ├── api.ts           # API 层：业务函数（fetchTables / fetchTableInfo / fetchRows / refreshRowCountCache）
+│   │   ├── hooks/           # 数据获取 hooks：useTableData（详情/分页/序号守卫）
+│   │   ├── components/      # 全局共享组件：SiderMenu（侧边栏菜单）
+│   │   └── views/           # 页面视图（文件夹 + index.tsx，第一级只有页面，目录名 = 路由路径）
+│   │       ├── home/        # 主页（预留图表）
+│   │       ├── query/       # 查询（预留 SQL 编辑器）
+│   │       └── table/       # 表数据页：?table= 参数驱动，表/视图共用
+│   │           ├── index.css    # 页面专属样式（含 TableView 组件树）
+│   │           └── TableView/   # 页面主体组件（私有）：index.tsx + components/ + columnUtils.ts
 │   └── shared/             # 前后端共享：types.ts + constants.ts
 └── test/                   # 单元 + 集成测试（db.test.ts / api.test.ts）
 ```

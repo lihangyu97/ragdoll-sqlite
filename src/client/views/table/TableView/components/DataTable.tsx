@@ -1,7 +1,7 @@
 import { Descriptions, Modal, Popover, Table, Tag, type TableColumnsType } from 'antd'
 import { useState } from 'react'
-import type { ColumnInfo, RowsResult } from '../../shared/types.js'
-import CellValue, { cellFullText } from './CellValue.js'
+import type { ColumnInfo, RowsResult } from '@shared/types'
+import CellValue, { cellFullText } from '@/views/table/TableView/components/CellValue'
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50]
 

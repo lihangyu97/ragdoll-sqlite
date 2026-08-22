@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    // 服务端编译产物由 node 直接运行（ESM 需显式 .js 后缀），覆盖回 NodeNext
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "noEmit": false,
     "rootDir": "src",
     "outDir": "dist",

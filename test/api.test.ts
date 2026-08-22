@@ -23,8 +23,10 @@ before(async () => {
   db.exec(`
     CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
     CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER, total REAL);
+    CREATE TABLE "order&spec#al/name" (id INTEGER PRIMARY KEY, note TEXT);
     INSERT INTO users (id, name) VALUES (1, 'alice'), (2, 'bob');
     INSERT INTO orders (id, user_id, total) VALUES (1, 1, 9.9), (2, 2, 19.9);
+    INSERT INTO "order&spec#al/name" (id, note) VALUES (1, 'x');
   `)
   db.close()
 
@@ -52,7 +54,7 @@ describe('HTTP API（真实服务器）', () => {
     const res = await fetch(`${base()}/api/tables?t=${token}`)
     assert.equal(res.status, 200)
     const tables = (await res.json()) as Array<{ name: string; columns: Array<{ name: string }> }>
-    assert.equal(tables.length, 2)
+    assert.equal(tables.length, 3)
     const users = tables.find(t => t.name === 'users')!
     assert.deepEqual(
       users.columns.map(c => c.name),
@@ -163,6 +165,21 @@ describe('HTTP API（真实服务器）', () => {
   it('路径穿越被拦截（URL 归一化后 404）', async () => {
     const res = await fetch(`${base()}/assets/../package.json?t=${token}`)
     assert.equal(res.status, 404)
+  })
+
+  it('表名含特殊字符（/ & #）编码后仍可访问结构/数据', async () => {
+    const encoded = encodeURIComponent('order&spec#al/name') // order%26spec%23al%2Fname
+    const info = await fetch(`${base()}/api/tables/${encoded}?t=${token}`)
+    assert.equal(info.status, 200)
+    const infoData = (await info.json()) as { name: string; rowCount: number }
+    assert.equal(infoData.name, 'order&spec#al/name')
+    assert.equal(infoData.rowCount, 1)
+
+    const rows = await fetch(`${base()}/api/tables/${encoded}/rows?t=${token}&page=1&pageSize=10`)
+    assert.equal(rows.status, 200)
+    const data = (await rows.json()) as { total: number; rows: Array<{ note: string }> }
+    assert.equal(data.total, 1)
+    assert.equal(data.rows[0].note, 'x')
   })
 })
 

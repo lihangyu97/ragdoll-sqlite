@@ -1,0 +1,43 @@
+/* 表数据页（TablePage + 私有 TableView 组件树）专属样式 */
+
+.table-header {
+  margin-bottom: 12px;
+}
+
+.cell-null {
+  color: #bfbfbf;
+  font-style: italic;
+}
+
+.cell-blob {
+  color: #722ed1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.cell-text {
+  word-break: break-all;
+}
+
+.cell-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* 数据表格：整行可点击查看详情 */
+.data-table .ant-table-tbody > tr {
+  cursor: pointer;
+}
+
+/* 表格区域最小高度，避免首次加载/数据较少时塌缩导致滚动条闪烁 */
+.data-table .ant-table-content {
+  min-height: 360px;
+}
+
+/* 单元格长文本的 hover 完整内容 */
+.cell-popover-content {
+  max-width: 420px;
+  word-break: break-all;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.6;
+}

@@ -1,7 +1,7 @@
 import { Button, Form, Modal, Radio, Select } from 'antd'
 import { useEffect, useMemo } from 'react'
-import type { ColumnInfo, SortSpec } from '../../shared/types.js'
-import { queryableColumns } from '../columnUtils.js'
+import type { ColumnInfo, SortSpec } from '@shared/types'
+import { queryableColumns } from '@/views/table/TableView/columnUtils'
 
 interface SortModalProps {
   open: boolean

@@ -1,4 +1,4 @@
-import type { ColumnInfo } from '../shared/types.js'
+import type { ColumnInfo } from '@shared/types'
 
 /**
  * 字段是否可参与过滤/排序（BLOB 按字节序无意义，排除）。

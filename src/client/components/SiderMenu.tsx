@@ -6,46 +6,45 @@ import {
   TableOutlined
 } from '@ant-design/icons'
 import { Menu, Tag } from 'antd'
-import type { TableEntry } from '../../shared/types.js'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
+import type { TableEntry } from '@shared/types'
 
 /** 顶层视图：tables=表数据浏览，home=主页（图表），query=查询（SQL 编辑器） */
 export type ViewKey = 'tables' | 'home' | 'query'
 
-/** 顶层菜单项（非表）的 key 集合，用于区分「导航项」与「表项」 */
-const NAV_KEYS: ReadonlySet<string> = new Set(['home', 'query'])
 /** 表项 key 前缀：防止表名恰好叫 home/query 时与导航项 key 冲突 */
 const TABLE_KEY_PREFIX = 'table:'
 
-interface TableListProps {
+interface SiderMenuProps {
   tables: TableEntry[]
-  selected: string | null
-  view: ViewKey
-  onSelectTable: (name: string) => void
-  onNavigate: (view: 'home' | 'query') => void
 }
 
 /**
  * 侧边栏菜单：主页 / 表与视图（可折叠子菜单，默认展开）/ 查询。
  * 表项 key 带前缀避免与导航项冲突；后续新增功能在 items 中追加即可。
+ * 选中态与导航均由 react-router 派生：pathname → 顶层视图，`?table=` → 当前表。
  */
-export default function TableList({
-  tables,
-  selected,
-  view,
-  onSelectTable,
-  onNavigate
-}: TableListProps) {
+export default function SiderMenu({ tables }: SiderMenuProps) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+
+  const view: ViewKey =
+    location.pathname === '/query' ? 'query' : location.pathname === '/home' ? 'home' : 'tables'
+  const selected = view === 'tables' ? searchParams.get('table') : null
+
   return (
     <Menu
       theme="light"
       mode="inline"
-      selectedKeys={view === 'tables' && selected ? [`${TABLE_KEY_PREFIX}${selected}`] : [view]}
+      selectedKeys={selected !== null ? [`${TABLE_KEY_PREFIX}${selected}`] : [view]}
       defaultOpenKeys={['tables']}
       onClick={({ key }) => {
-        if (NAV_KEYS.has(key)) {
-          onNavigate(key as 'home' | 'query')
+        if (key === 'home' || key === 'query') {
+          navigate(`/${key}`)
         } else if (key.startsWith(TABLE_KEY_PREFIX)) {
-          onSelectTable(key.slice(TABLE_KEY_PREFIX.length))
+          // 表名走查询参数（encodeURIComponent 防表名含 & / # 等特殊字符）
+          navigate(`/table?table=${encodeURIComponent(key.slice(TABLE_KEY_PREFIX.length))}`)
         }
       }}
       items={[

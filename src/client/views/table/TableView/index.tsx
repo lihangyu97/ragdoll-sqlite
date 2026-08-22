@@ -15,13 +15,13 @@ import type {
   SortSpec,
   TableInfo,
   TableSchemaEntry
-} from '../../shared/types.js'
-import ColumnVisibilityModal from '../components/ColumnVisibilityModal.js'
-import DataTable from '../components/DataTable.js'
-import FilterBar from '../components/FilterBar.js'
-import FilterModal from '../components/FilterModal.js'
-import SortModal from '../components/SortModal.js'
-import StructureTable from '../components/StructureTable.js'
+} from '@shared/types'
+import ColumnVisibilityModal from '@/views/table/TableView/components/ColumnVisibilityModal'
+import DataTable from '@/views/table/TableView/components/DataTable'
+import FilterBar from '@/views/table/TableView/components/FilterBar'
+import FilterModal from '@/views/table/TableView/components/FilterModal'
+import SortModal from '@/views/table/TableView/components/SortModal'
+import StructureTable from '@/views/table/TableView/components/StructureTable'
 
 interface TableViewProps {
   schema: TableSchemaEntry
