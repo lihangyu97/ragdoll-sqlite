@@ -237,6 +237,48 @@ describe('SqliteDb', () => {
     }
   })
 
+  it('排序：asc/desc 顺序正确，可与过滤叠加', () => {
+    const db = SqliteDb.open(dbPath)
+    try {
+      // age 升序 → id 1,2,3（age=19,20,21）
+      const asc = db.rows('users', 1, 3, [], { column: 'age', direction: 'asc' })
+      assert.deepEqual(
+        asc.rows.map(r => r.id),
+        [1, 2, 3]
+      )
+
+      // age 降序 → id 35,34,33（age=53,52,51）
+      const desc = db.rows('users', 1, 3, [], { column: 'age', direction: 'desc' })
+      assert.deepEqual(
+        desc.rows.map(r => r.id),
+        [35, 34, 33]
+      )
+
+      // 过滤 + 排序叠加：age >= 50 且降序 → 第一条 id=35
+      const combined = db.rows('users', 1, 10, [{ column: 'age', op: 'gte', value: 50 }], {
+        column: 'age',
+        direction: 'desc'
+      })
+      assert.equal(combined.total, 4) // age 50..53
+      assert.equal(combined.rows[0].id, 35)
+      assert.equal(combined.rows[3].id, 32)
+    } finally {
+      db.close()
+    }
+  })
+
+  it('排序：未知字段抛错', () => {
+    const db = SqliteDb.open(dbPath)
+    try {
+      assert.throws(
+        () => db.rows('users', 1, 10, [], { column: 'nope', direction: 'asc' }),
+        /未知字段/
+      )
+    } finally {
+      db.close()
+    }
+  })
+
   it('分页：总数与页码正确，BLOB 被序列化，__row 为全表唯一行号', () => {
     const db = SqliteDb.open(dbPath)
     try {

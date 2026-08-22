@@ -42,7 +42,7 @@ export default function StructureTable({ columns, info }: StructureTableProps) {
             title: '默认值',
             dataIndex: 'defaultValue',
             render: (v: unknown) =>
-              v === null || v === undefined ? <span className="cell-null">—</span> : String(v)
+              v === null || v === undefined ? <span className="cell-null">-</span> : String(v)
           }
         ]}
       />

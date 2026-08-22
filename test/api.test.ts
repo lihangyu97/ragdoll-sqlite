@@ -100,6 +100,28 @@ describe('HTTP API（真实服务器）', () => {
     assert.equal(unknown.status, 400)
   })
 
+  it('sortBy/sortDir：排序生效，非法方向/未知字段 400', async () => {
+    // id 降序 → 第一行 id=2
+    const desc = await fetch(`${base()}/api/tables/users/rows?t=${token}&sortBy=id&sortDir=desc`)
+    assert.equal(desc.status, 200)
+    const descData = (await desc.json()) as { rows: Array<{ id: number }> }
+    assert.equal(descData.rows[0].id, 2)
+
+    // filter + sort 叠加
+    const combined = await fetch(
+      `${base()}/api/tables/users/rows?t=${token}&filter=${encodeURIComponent(JSON.stringify([{ column: 'id', op: 'gte', value: 1 }]))}&sortBy=id&sortDir=desc`
+    )
+    assert.equal(combined.status, 200)
+
+    // 非法方向
+    const badDir = await fetch(`${base()}/api/tables/users/rows?t=${token}&sortBy=id&sortDir=up`)
+    assert.equal(badDir.status, 400)
+
+    // 未知排序字段
+    const unknownCol = await fetch(`${base()}/api/tables/users/rows?t=${token}&sortBy=nope`)
+    assert.equal(unknownCol.status, 400)
+  })
+
   it('未知表 404；pageSize 超上限 400', async () => {
     const notFound = await fetch(`${base()}/api/tables/nope?t=${token}`)
     assert.equal(notFound.status, 404)

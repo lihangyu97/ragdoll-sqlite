@@ -1,6 +1,7 @@
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons'
 import { Button, Form, Input, InputNumber, Modal, Select, Space } from 'antd'
 import { useEffect, useMemo } from 'react'
+import { queryableColumns } from '../columnUtils.js'
 import type { ColumnInfo, FilterCondition, FilterOperator } from '../../shared/types.js'
 
 interface FilterModalProps {
@@ -42,11 +43,6 @@ function isNumericType(c: ColumnInfo): boolean {
   return /INT|REAL|FLOA|DOUB|DEC|NUM/.test(c.type.toUpperCase())
 }
 
-/** 参与过滤的字段（BLOB 无法有意义地过滤，排除） */
-function filterableColumns(columns: ColumnInfo[]): ColumnInfo[] {
-  return columns.filter(c => !c.type.toUpperCase().includes('BLOB'))
-}
-
 /** 按表结构生成过滤条件表单；只把填了值的行拼进 WHERE */
 export default function FilterModal({
   open,
@@ -56,7 +52,7 @@ export default function FilterModal({
   onSubmit
 }: FilterModalProps) {
   const [form] = Form.useForm<{ rows: RowValue[] }>()
-  const filterable = useMemo(() => filterableColumns(columns), [columns])
+  const filterable = useMemo(() => queryableColumns(columns), [columns])
   const rowsWatch = Form.useWatch('rows', form)
 
   // 打开时回填现有条件（无则给一行空的）

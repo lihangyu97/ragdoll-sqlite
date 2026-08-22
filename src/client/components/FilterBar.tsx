@@ -1,4 +1,4 @@
-import { Button, Space, Tag } from 'antd'
+import { Button, Tag } from 'antd'
 import type { FilterCondition } from '../../shared/types.js'
 
 const OP_TEXT: Record<string, string> = {
@@ -27,10 +27,13 @@ interface FilterBarProps {
   onClear: () => void
 }
 
-/** 已生效的过滤条件标签（可单独移除 / 清除全部） */
+/**
+ * 已生效的过滤条件标签（可单独移除 / 清除全部）。
+ * 不包外层容器：由调用方与排序标签等组成同一条件条。
+ */
 export default function FilterBar({ filters, onRemove, onClear }: FilterBarProps) {
   return (
-    <Space wrap size={4} style={{ marginBottom: 8 }}>
+    <>
       {filters.map((f, i) => (
         <Tag key={`${f.column}-${i}`} color="blue" closable onClose={() => onRemove(i)}>
           {describe(f)}
@@ -39,6 +42,6 @@ export default function FilterBar({ filters, onRemove, onClear }: FilterBarProps
       <Button type="link" size="small" style={{ paddingInline: 4 }} onClick={onClear}>
         清除全部
       </Button>
-    </Space>
+    </>
   )
 }

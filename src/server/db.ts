@@ -5,6 +5,7 @@ import type {
   ForeignKeyInfo,
   IndexInfo,
   RowsResult,
+  SortSpec,
   TableEntry,
   TableInfo,
   TableSchemaEntry
@@ -197,9 +198,16 @@ export class SqliteDb {
   /**
    * 分页数据（已序列化为 JSON 安全形态）。
    * filters：可选过滤条件（列名走表结构白名单校验，值全部参数化）。
+   * sort：可选排序（列名白名单，方向 asc/desc）。
    * 注意：过滤态不能复用行数缓存（缓存的是全表 count），无过滤时仍走缓存。
    */
-  rows(name: string, page: number, pageSize: number, filters: FilterCondition[] = []): RowsResult {
+  rows(
+    name: string,
+    page: number,
+    pageSize: number,
+    filters: FilterCondition[] = [],
+    sort: SortSpec | null = null
+  ): RowsResult {
     this.requireTable(name)
     const safePage = Math.max(1, Math.floor(page) || 1)
     const safePageSize = Math.min(
@@ -207,11 +215,12 @@ export class SqliteDb {
       Math.max(1, Math.floor(pageSize) || DEFAULT_PAGE_SIZE)
     )
     const { where, params } = this.buildWhere(name, filters)
+    const orderBy = sort ? this.buildOrderBy(name, sort) : ''
     const total =
       filters.length === 0 ? this.rowCount(name) : this.countWithWhere(name, where, params)
     const offset = (safePage - 1) * safePageSize
     const rows = this.db
-      .prepare(`SELECT * FROM ${quoteIdent(name)}${where} LIMIT ? OFFSET ?`)
+      .prepare(`SELECT * FROM ${quoteIdent(name)}${where}${orderBy} LIMIT ? OFFSET ?`)
       .all(...params, safePageSize, offset) as Record<string, unknown>[]
     return {
       total,
@@ -225,6 +234,16 @@ export class SqliteDb {
         return out
       })
     }
+  }
+
+  /** 排序子句：列名白名单校验，方向 asc/desc */
+  private buildOrderBy(name: string, sort: SortSpec): string {
+    const knownColumns = new Set(this.columnsOf(name).map(c => c.name))
+    if (!knownColumns.has(sort.column)) {
+      throw new Error(`未知字段: ${sort.column}`)
+    }
+    const dir = sort.direction === 'desc' ? 'DESC' : 'ASC'
+    return ` ORDER BY ${quoteIdent(sort.column)} ${dir}`
   }
 
   /**

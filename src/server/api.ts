@@ -1,4 +1,10 @@
-import type { FilterCondition, RowsResult, TableInfo, TableSchemaEntry } from '../shared/types.js'
+import type {
+  FilterCondition,
+  RowsResult,
+  SortSpec,
+  TableInfo,
+  TableSchemaEntry
+} from '../shared/types.js'
 import type { SqliteDb } from './db.js'
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from './db.js'
 
@@ -31,7 +37,9 @@ export function handleRows(
   name: string,
   pageRaw: string | null,
   pageSizeRaw: string | null,
-  filterRaw: string | null
+  filterRaw: string | null,
+  sortByRaw: string | null,
+  sortDirRaw: string | null
 ): RowsResult {
   if (!name) throw new ApiError(400, '缺少表名')
   const page = pageRaw === null ? 1 : Number(pageRaw)
@@ -52,8 +60,15 @@ export function handleRows(
       throw new ApiError(400, 'filter 参数必须是合法的 JSON 数组')
     }
   }
+  let sort: SortSpec | null = null
+  if (sortByRaw) {
+    if (sortDirRaw && sortDirRaw !== 'asc' && sortDirRaw !== 'desc') {
+      throw new ApiError(400, 'sortDir 必须是 asc 或 desc')
+    }
+    sort = { column: sortByRaw, direction: sortDirRaw === 'desc' ? 'desc' : 'asc' }
+  }
   try {
-    return db.rows(name, page, pageSize, filters)
+    return db.rows(name, page, pageSize, filters, sort)
   } catch (err) {
     const msg = (err as Error).message
     // 表不存在 → 404；未知字段/运算符 → 400

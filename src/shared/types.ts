@@ -9,6 +9,15 @@ export interface FilterCondition {
   value?: unknown
 }
 
+/** 排序方向 */
+export type SortDirection = 'asc' | 'desc'
+
+/** 排序规格 */
+export interface SortSpec {
+  column: string
+  direction: SortDirection
+}
+
 /** sqlite_master 中的表/视图条目 */
 export interface TableEntry {
   name: string

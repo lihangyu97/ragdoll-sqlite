@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FilterCondition, RowsResult, TableInfo } from '../shared/types.js'
+import type { FilterCondition, RowsResult, SortSpec, TableInfo } from '../shared/types.js'
 import { apiFetch } from './api.js'
 
 export interface UseTableData {
@@ -15,6 +15,8 @@ export interface UseTableData {
   onPageChange: (page: number, pageSize: number) => void
   filters: FilterCondition[]
   setFilters: (filters: FilterCondition[]) => void
+  sort: SortSpec | null
+  setSort: (sort: SortSpec | null) => void
 }
 
 /**
@@ -32,6 +34,7 @@ export function useTableData(): UseTableData {
   const [loadingRows, setLoadingRows] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
   const [filters, setFiltersState] = useState<FilterCondition[]>([])
+  const [sort, setSortState] = useState<SortSpec | null>(null)
   const infoSeq = useRef(0)
   const rowsSeq = useRef(0)
   const selectedRef = useRef<string | null>(null)
@@ -44,6 +47,7 @@ export function useTableData(): UseTableData {
     setInfo(null)
     setDataError(null)
     setFiltersState([]) // 过滤条件按表持有，切表清空
+    setSortState(null) // 排序同样按表持有，切表清空
     // rows 不清空：旧行保留在 loading 遮罩下，避免表格塌缩导致滚动条闪烁
   }, [])
 
@@ -74,6 +78,10 @@ export function useTableData(): UseTableData {
     })
     const params: Record<string, string | number> = { page, pageSize }
     if (filters.length > 0) params.filter = JSON.stringify(filters)
+    if (sort) {
+      params.sortBy = sort.column
+      params.sortDir = sort.direction
+    }
     apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, params)
       .then(data => {
         if (seq !== rowsSeq.current) return
@@ -88,7 +96,7 @@ export function useTableData(): UseTableData {
       .finally(() => {
         if (seq === rowsSeq.current) setLoadingRows(false)
       })
-  }, [selected, page, pageSize, filters])
+  }, [selected, page, pageSize, filters, sort])
 
   const clearError = useCallback(() => setDataError(null), [])
 
@@ -100,6 +108,11 @@ export function useTableData(): UseTableData {
   const setFilters = useCallback((next: FilterCondition[]) => {
     setFiltersState(next)
     setPage(1) // 改过滤条件后回到第 1 页
+  }, [])
+
+  const setSort = useCallback((next: SortSpec | null) => {
+    setSortState(next)
+    setPage(1) // 改排序后回到第 1 页
   }, [])
 
   return {
@@ -114,6 +127,8 @@ export function useTableData(): UseTableData {
     pageSize,
     onPageChange,
     filters,
-    setFilters
+    setFilters,
+    sort,
+    setSort
   }
 }

@@ -31,7 +31,9 @@ export default function App() {
     clearError,
     onPageChange,
     filters,
-    setFilters
+    setFilters,
+    sort,
+    setSort
   } = useTableData()
 
   // 初始加载：表/视图清单 + 字段预取（一次请求），并自动选中第一个
@@ -130,6 +132,8 @@ export default function App() {
             onPageChange={onPageChange}
             filters={filters}
             onFiltersChange={setFilters}
+            sort={sort}
+            onSortChange={setSort}
           />
         )}
       </Content>
