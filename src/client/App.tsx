@@ -50,7 +50,7 @@ export default function App() {
     setSelected(name)
     setPage(1)
     setInfo(null)
-    setRows(null)
+    // 不清空 rows：旧行保留在 loading 遮罩下，避免表格塌缩导致滚动条闪烁
     setDataError(null)
   }, [])
 
@@ -108,12 +108,14 @@ export default function App() {
   }
 
   const selectedSchema = schemas.find((s) => s.name === selected) ?? null
-  // 行数优先取分页结果（已含 total），详情接口返回前显示 …
-  const rowCountText = rows
-    ? rows.total.toLocaleString()
-    : info
-      ? info.rowCount.toLocaleString()
-      : '…'
+  // 行数：加载中显示 …，优先取分页结果（已含 total），详情接口返回前再取 rowCount
+  const rowCountText = loadingRows
+    ? '…'
+    : rows
+      ? rows.total.toLocaleString()
+      : info
+        ? info.rowCount.toLocaleString()
+        : '…'
 
   return (
     <Layout className="app-layout">

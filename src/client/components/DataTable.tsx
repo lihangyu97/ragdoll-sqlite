@@ -1,9 +1,9 @@
 import { Descriptions, Modal, Popover, Table, Tag, type TableColumnsType } from 'antd'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ColumnInfo, RowsResult } from '../../shared/types.js'
 import CellValue, { cellText } from './CellValue.js'
 
-const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500]
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100]
 const MAX_COLUMN_WIDTH = 180
 /** 超过该显示宽度的文本单元格，hover 时用 Popover 展示完整内容（CJK 按 2 字符计） */
 const HOVER_POPOVER_MIN_WIDTH = 24
@@ -21,7 +21,13 @@ function displayWidth(s: string): number {
 function columnWidth(c: ColumnInfo): number {
   const t = c.type.toUpperCase()
   if (t.includes('INT')) return 90
-  if (t.includes('REAL') || t.includes('FLOA') || t.includes('DOUB') || t.includes('DEC') || t.includes('NUM')) {
+  if (
+    t.includes('REAL') ||
+    t.includes('FLOA') ||
+    t.includes('DOUB') ||
+    t.includes('DEC') ||
+    t.includes('NUM')
+  ) {
     return 110
   }
   if (t.includes('BLOB')) return 120
@@ -40,8 +46,19 @@ interface DataTableProps {
 }
 
 /** 「数据」Tab：分页表格（服务端分页，__row 为稳定行号）；点击行弹出该行详情 */
-export default function DataTable({ tableName, columns, rows, loading, onPageChange }: DataTableProps) {
+export default function DataTable({
+  tableName,
+  columns,
+  rows,
+  loading,
+  onPageChange
+}: DataTableProps) {
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null)
+
+  // 切换表时关闭残留的行详情弹窗（旧记录与新表字段不匹配）
+  useEffect(() => {
+    setDetail(null)
+  }, [tableName])
 
   // 表格总宽 = 行号列 + 各列宽（数值 scroll.x 使列宽严格按 colgroup 生效）
   const totalWidth = 60 + columns.reduce((sum, c) => sum + columnWidth(c), 0)
@@ -51,7 +68,7 @@ export default function DataTable({ tableName, columns, rows, loading, onPageCha
       title: '#',
       key: '__row',
       width: 60,
-      render: (_v, record) => <span className="cell-number">{String(record.__row)}</span>,
+      render: (_v, record) => <span className="cell-number">{String(record.__row)}</span>
     },
     ...columns.map((c: ColumnInfo) => ({
       title: (
@@ -87,8 +104,8 @@ export default function DataTable({ tableName, columns, rows, loading, onPageCha
           )
         }
         return <CellValue value={v} />
-      },
-    })),
+      }
+    }))
   ]
 
   return (
@@ -101,8 +118,8 @@ export default function DataTable({ tableName, columns, rows, loading, onPageCha
         rowKey="__row"
         loading={loading}
         scroll={{ x: totalWidth }}
-        onRow={(record) => ({
-          onClick: () => setDetail(record),
+        onRow={record => ({
+          onClick: () => setDetail(record)
         })}
         pagination={
           rows
@@ -112,8 +129,8 @@ export default function DataTable({ tableName, columns, rows, loading, onPageCha
                 total: rows.total,
                 showSizeChanger: true,
                 pageSizeOptions: PAGE_SIZE_OPTIONS,
-                showTotal: (total) => `共 ${total.toLocaleString()} 行`,
-                onChange: onPageChange,
+                showTotal: total => `共 ${total.toLocaleString()} 行`,
+                onChange: onPageChange
               }
             : false
         }
@@ -131,14 +148,14 @@ export default function DataTable({ tableName, columns, rows, loading, onPageCha
             bordered
             size="small"
             column={1}
-            items={columns.map((c) => ({
+            items={columns.map(c => ({
               key: c.name,
               label: (
                 <span>
                   {c.name} {c.type ? <Tag>{c.type}</Tag> : null}
                 </span>
               ),
-              children: <CellValue value={detail[c.name]} full />,
+              children: <CellValue value={detail[c.name]} full />
             }))}
           />
         )}
