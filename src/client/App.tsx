@@ -1,26 +1,26 @@
-import { EyeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, TableOutlined } from '@ant-design/icons'
-import { Alert, Empty, Layout, Result, Spin, Tabs, Tag, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
+import { Empty, Layout, Result, Spin } from 'antd'
+import { useCallback, useEffect, useState } from 'react'
 import type { TableSchemaEntry } from '../shared/types.js'
 import { apiFetch } from './api.js'
-import DataTable from './components/DataTable.js'
-import StructureTable from './components/StructureTable.js'
-import TableList from './components/TableList.js'
+import TableList, { type ViewKey } from './components/TableList.js'
 import { useTableData } from './useTableData.js'
+import HomeView from './views/HomeView.js'
+import QueryView from './views/QueryView.js'
+import TableView from './views/TableView.js'
 
 const { Sider, Content } = Layout
 
 /**
- * 应用容器：负责状态与数据获取（表清单+全部表头预取 / 行数据 / 结构详情），
- * 布局组装（侧边栏 + 内容区），数据获取逻辑在 useTableData hook 中。
- *
- * 加载策略：进入页面即预取全部表的字段（/api/tables，大库阈值内），
- * 切换表时表头立即可用，行数据在表格内部 loading；超大库（>50 表）由详情接口按需取字段。
+ * 应用容器：表清单预取 + 顶层视图切换（主页 / 表数据浏览 / 查询）+ 布局组装。
+ * 视图切换用 state 而非 React Router：本工具端口与 token 每次启动都变，
+ * URL 跨会话不可复用，路由收益极低；后续需要 URL 同步时再补 read/pushState。
  */
 export default function App() {
   const [schemas, setSchemas] = useState<TableSchemaEntry[] | null>(null)
   const [tablesError, setTablesError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
+  const [view, setView] = useState<ViewKey>('tables')
   const { selected, select, info, rows, loadingRows, dataError, clearError, onPageChange } =
     useTableData()
 
@@ -41,6 +41,15 @@ export default function App() {
       .catch(err => setTablesError((err as Error).message))
   }, [select])
 
+  const handleNavigate = useCallback((next: 'home' | 'query') => setView(next), [])
+  const handleSelectTable = useCallback(
+    (name: string) => {
+      select(name)
+      setView('tables')
+    },
+    [select]
+  )
+
   // ---- 全局状态：加载失败 / 首次加载中 ----
   if (tablesError) {
     return <Result status="error" title="加载失败" subTitle={tablesError} />
@@ -59,14 +68,6 @@ export default function App() {
     selectedSchema && selectedSchema.columns.length > 0
       ? selectedSchema.columns
       : (info?.columns ?? [])
-  // 行数：加载中显示 …，优先取分页结果（已含 total），详情接口返回前再取 rowCount
-  const rowCountText = loadingRows
-    ? '…'
-    : rows
-      ? rows.total.toLocaleString()
-      : info
-        ? info.rowCount.toLocaleString()
-        : '…'
 
   return (
     <Layout className="app-layout">
@@ -83,7 +84,13 @@ export default function App() {
           <img src="/favicon.svg" alt="RagdollSqlite" className="sider-logo-icon" />
           {!collapsed && <span className="sider-logo-title">RagdollSqlite</span>}
         </div>
-        <TableList tables={schemas} selected={selected} onSelect={select} />
+        <TableList
+          tables={schemas}
+          selected={selected}
+          view={view}
+          onSelectTable={handleSelectTable}
+          onNavigate={handleNavigate}
+        />
         <div
           className="sider-trigger"
           title={collapsed ? '展开侧边栏' : '收起侧边栏'}
@@ -95,59 +102,23 @@ export default function App() {
       </Sider>
 
       <Content className="app-content">
-        {selectedSchema === null ? (
+        {view === 'home' ? (
+          <HomeView />
+        ) : view === 'query' ? (
+          <QueryView />
+        ) : selectedSchema === null ? (
           <Empty description="数据库中没有表或视图" style={{ marginTop: 80 }} />
         ) : (
-          <>
-            <div className="table-header">
-              <Typography.Title
-                level={4}
-                style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}
-              >
-                {selectedSchema.type === 'view' ? <EyeOutlined /> : <TableOutlined />}
-                {selectedSchema.name}
-                <Tag>{selectedSchema.type === 'view' ? '视图' : '表'}</Tag>
-                <Typography.Text type="secondary">共 {rowCountText} 行</Typography.Text>
-              </Typography.Title>
-            </div>
-            {dataError && (
-              <Alert
-                type="error"
-                showIcon
-                title={dataError}
-                style={{ marginBottom: 12 }}
-                closable={{ onClose: clearError }}
-              />
-            )}
-            <Tabs
-              items={[
-                {
-                  key: 'data',
-                  label: '数据',
-                  children:
-                    tableColumns.length === 0 ? (
-                      <div className="loading-wrap">
-                        <Spin size="large" />
-                      </div>
-                    ) : (
-                      <DataTable
-                        key={selectedSchema.name}
-                        tableName={selectedSchema.name}
-                        columns={tableColumns}
-                        rows={rows}
-                        loading={loadingRows}
-                        onPageChange={onPageChange}
-                      />
-                    )
-                },
-                {
-                  key: 'structure',
-                  label: '结构',
-                  children: <StructureTable columns={tableColumns} info={info} />
-                }
-              ]}
-            />
-          </>
+          <TableView
+            schema={selectedSchema}
+            columns={tableColumns}
+            info={info}
+            rows={rows}
+            loadingRows={loadingRows}
+            dataError={dataError}
+            clearError={clearError}
+            onPageChange={onPageChange}
+          />
         )}
       </Content>
     </Layout>

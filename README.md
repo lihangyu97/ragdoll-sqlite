@@ -1,4 +1,4 @@
-# ragdoll-sqlite
+# RagdollSqlite
 
 命令行工具：`ragdoll-sqlite <sqlite 路径>` 启动一个本地只读 Web 页面，在浏览器中浏览 SQLite 数据库的表、视图、结构与数据。
 
