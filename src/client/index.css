@@ -1,0 +1,85 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.app-layout {
+  height: 100vh;
+}
+
+.app-sider {
+  overflow: auto;
+  border-right: 1px solid #f0f0f0;
+}
+
+.sider-title {
+  padding: 12px 16px 8px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sider-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  margin: 2px 8px;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 13px;
+}
+
+.sider-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.sider-item.selected {
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.sider-item .item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-content {
+  padding: 16px 20px;
+  overflow: auto;
+}
+
+.table-header {
+  margin-bottom: 12px;
+}
+
+.loading-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 80px 0;
+}
+
+.cell-null {
+  color: #bfbfbf;
+  font-style: italic;
+}
+
+.cell-blob {
+  color: #722ed1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.cell-text {
+  word-break: break-all;
+}
+
+.cell-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
