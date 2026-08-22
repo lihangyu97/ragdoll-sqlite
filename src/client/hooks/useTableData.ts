@@ -42,9 +42,11 @@ export function useTableData(selected: string | null): UseTableData {
   const [hiddenByTable, setHiddenByTable] = useState<Record<string, string[]>>({})
   const infoSeq = useRef(0)
   const rowsSeq = useRef(0)
+  /** 最近一次发起过请求的表（切表判断用） */
+  const lastSelectedRef = useRef<string | null>(null)
 
   // 切表重置：分页/结构/过滤/排序/错误回到初始值（按表持有，切表即清空）。
-  // 与数据 effect 同轮触发时旧 filters 可能先发一次请求，但被序号守卫丢弃，最终状态正确。
+  // 与数据 effect 同轮触发，重置的 setState 到下一渲染才生效。
   useEffect(() => {
     // 微任务中 setState，规避 react-hooks/set-state-in-effect 规则
     queueMicrotask(() => {
@@ -77,6 +79,14 @@ export function useTableData(selected: string | null): UseTableData {
   // 分页数据（带过滤条件）
   useEffect(() => {
     if (!selected) return
+    const prev = lastSelectedRef.current
+    lastSelectedRef.current = selected
+    if (prev !== null && prev !== selected) {
+      // 切表：跳过本轮（重置的 setState 尚未生效），避免用旧表的 filters/sort 请求新表；
+      // 递增 seq 使切表前 in-flight 的旧表响应失效，下一轮（重置完成）再正常拉取
+      rowsSeq.current++
+      return
+    }
     const seq = ++rowsSeq.current
     // 在微任务中置 loading：请求开始时及时显示遮罩，
     // 同时避免在 effect 体内同步 setState（react-hooks/set-state-in-effect）

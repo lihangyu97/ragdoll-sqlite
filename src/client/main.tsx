@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { ConfigProvider } from 'antd'
 import { HashRouter } from 'react-router'
 import App from '@/App'
+import { SchemasProvider } from '@/SchemasContext'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -18,7 +19,10 @@ createRoot(document.getElementById('root')!).render(
       {/* HashRouter：token 留在 hash 外的 ?t= 中，路由切换不触碰它；
           且生产环境 node:http 静态托管无需 SPA fallback */}
       <HashRouter>
-        <App />
+        {/* 表清单全局预取（App 与页面共享） */}
+        <SchemasProvider>
+          <App />
+        </SchemasProvider>
       </HashRouter>
     </ConfigProvider>
   </React.StrictMode>

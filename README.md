@@ -43,11 +43,11 @@ pnpm dev:server     # 开发模式后端（固定端口 7860，跳过 token 校�
 pnpm dev:web        # vite dev server（5173，/api 代理到 7860），前端热更新
 ```
 
-开发模式：先跑 `pnpm dev:server`，再跑 `pnpm dev:web`，浏览器打开 `http://127.0.0.1:5173/?t=dev`。指定要打开的数据库有两种方式（二者等价）：
+开发模式：先跑 `pnpm dev:server`，再跑 `pnpm dev:web`，浏览器打开 `http://127.0.0.1:5173/?t=dev`。指定要打开的数据库：
 
 ```bash
-# 方式一：位置参数（通过 -- 透传给脚本）
-pnpm dev:server -- ./data/app.db
+# 方式一：位置参数直接跟在命令后面（最简）
+pnpm dev:server ./data/app.db
 
 # 方式二：环境变量 RAGDOLL_DB（未传位置参数时生效）
 RAGDOLL_DB=./data/app.db pnpm dev:server
@@ -82,7 +82,9 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 │   │   ├── db.ts           # better-sqlite3 只读封装（探活/元数据/分页/序列化/行数缓存）
 │   │   └── api.ts          # REST API 处理器
 │   ├── client/             # 前端 SPA（React 19 + antd v6 + react-router）
-│   │   ├── App.tsx          # 布局组装 + 表清单预取 + 路由表
+│   │   ├── App.tsx          # 布局组装 + 全局加载态 + 路由表（由 NAV_ROUTES 生成）
+│   │   ├── routes.tsx       # 顶层路由配置（单源：Routes 与 SiderMenu 共用）
+│   │   ├── SchemasContext.tsx  # 表清单全局预取（SchemasProvider + useSchemas）
 │   │   ├── api.ts           # API 层：业务函数（fetchTables / fetchTableInfo / fetchRows / refreshRowCountCache）
 │   │   ├── hooks/           # 数据获取 hooks：useTableData（详情/分页/序号守卫）
 │   │   ├── components/      # 全局共享组件：SiderMenu（侧边栏菜单）
@@ -102,13 +104,14 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 | -------------------------------------------- | ---------------------------------------------------------- |
 | `GET /api/tables`                            | 表/视图清单（表数 ≤50 时一次预取所有表头，更大库按需加载） |
 | `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数）                              |
-| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据                                                   |
+| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据（可选 `filter` / `sortBy` / `sortDir` 参数）      |
+| `POST /api/refresh`                          | 清空行数缓存（外部可能改过库）                             |
 
 所有请求需携带访问令牌 `?t=<token>`（CLI 启动时生成，拼在页面 URL 中）。
 
 ## Roadmap
 
-- 刷新当前表、按列查询/过滤（设计已定稿，见 [docs/ROADMAP.md](docs/ROADMAP.md)）
-- 列排序、导出 CSV / JSON
+- 刷新当前表、按列查询/过滤、列排序、路由化（已实现，见 [docs/ROADMAP.md](docs/ROADMAP.md)）
+- 导出 CSV / JSON
 - 只读 SQL 查询控制台（「查询」菜单占位页已就绪）
-- 顶部历史页签栏、URL 直达、深色模式、大表虚拟滚动
+- 顶部历史页签栏、深色模式、大表虚拟滚动、翻页状态进 URL

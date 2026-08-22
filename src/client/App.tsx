@@ -1,46 +1,26 @@
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
 import { Layout, Result, Spin } from 'antd'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
-import type { TableSchemaEntry } from '@shared/types'
-import { fetchTables } from '@/api'
 import SiderMenu from '@/components/SiderMenu'
-import HomePage from '@/views/home'
-import QueryPage from '@/views/query'
-import TablePage from '@/views/table'
+import { NAV_ROUTES } from '@/routes'
+import { useSchemas } from '@/SchemasContext'
 
 const { Sider, Content } = Layout
 
 /**
- * 应用容器：表清单预取 + 布局组装。
- * 视图切换由 react-router（HashRouter）驱动：
- * `/` → `/home`（主页）｜ `/table`（表数据页，`?table=` 指定表）｜ `/query` 查询。
+ * 应用容器：布局组装 + 全局加载态（表清单由 SchemasProvider 预取）。
+ * 路由全部由 NAV_ROUTES 生成（新增页面只需在 routes.tsx 追加一项）；
+ * 仅保留两条应用级重定向：/ → /home（默认页）、* → /table（兜底）。
  * 访问令牌在 hash 外的 `?t=` 中，路由切换不触碰它；hash 路由无需服务端 SPA fallback。
  */
 export default function App() {
-  const [schemas, setSchemas] = useState<TableSchemaEntry[] | null>(null)
-  const [tablesError, setTablesError] = useState<string | null>(null)
+  const { schemas, error } = useSchemas()
   const [collapsed, setCollapsed] = useState(false)
 
-  // 初始加载：表/视图清单 + 字段预取（一次请求）
-  useEffect(() => {
-    fetchTables()
-      .then(list => {
-        // 防御：旧版服务端进程不返回 columns，导致页面白屏，给明确提示
-        if (!list.every(s => Array.isArray(s.columns))) {
-          setTablesError(
-            '服务端响应缺少表字段信息。可能是旧的服务进程仍在运行，请先停止旧的 ragdoll-sqlite 再重新启动。'
-          )
-          return
-        }
-        setSchemas(list)
-      })
-      .catch(err => setTablesError((err as Error).message))
-  }, [])
-
   // ---- 全局状态：加载失败 / 首次加载中 ----
-  if (tablesError) {
-    return <Result status="error" title="加载失败" subTitle={tablesError} />
+  if (error) {
+    return <Result status="error" title="加载失败" subTitle={error} />
   }
   if (schemas === null) {
     return (
@@ -78,11 +58,13 @@ export default function App() {
 
       <Content className="app-content">
         <Routes>
-          {/* 默认进入主页；表名走 ?table= 查询参数，规避路径编码问题 */}
+          {/* 默认进入主页 */}
           <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/table" element={<TablePage schemas={schemas} />} />
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/query" element={<QueryPage />} />
+          {/* 全部页面路由由 NAV_ROUTES 生成 */}
+          {NAV_ROUTES.map(r => (
+            <Route key={r.path} path={r.path} element={r.element} />
+          ))}
+          {/* 未知路径兜底到表数据页 */}
           <Route path="*" element={<Navigate to="/table" replace />} />
         </Routes>
       </Content>

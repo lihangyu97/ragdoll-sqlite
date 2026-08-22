@@ -19,22 +19,28 @@ function parseArgs(argv: string[], envDb?: string): CliOptions | { error: string
   let dev = false
   let open = false
   let port: number | null = null
+  // `--` 之后不再解析选项，全部视为位置参数（pnpm run 透传时以 -- 分隔）
+  let afterDoubleDash = false
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === '--dev') {
+    if (!afterDoubleDash && arg === '--') {
+      afterDoubleDash = true
+      continue
+    }
+    if (!afterDoubleDash && arg === '--dev') {
       dev = true
-    } else if (arg === '--open' || arg === '-o') {
+    } else if (!afterDoubleDash && (arg === '--open' || arg === '-o')) {
       open = true
-    } else if (arg === '--port' || arg === '-p') {
+    } else if (!afterDoubleDash && (arg === '--port' || arg === '-p')) {
       const raw = argv[++i]
       const n = Number(raw)
       if (raw === undefined || !Number.isInteger(n) || n < 1 || n > 65535) {
         return { error: `无效端口: ${raw ?? ''}` }
       }
       port = n
-    } else if (arg === '-h' || arg === '--help') {
+    } else if (!afterDoubleDash && (arg === '-h' || arg === '--help')) {
       return { error: '__HELP__' }
-    } else if (arg.startsWith('-')) {
+    } else if (!afterDoubleDash && arg.startsWith('-')) {
       return { error: `未知参数: ${arg}` }
     } else {
       positional.push(arg)

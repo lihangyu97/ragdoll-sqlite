@@ -1,18 +1,10 @@
-import {
-  DatabaseOutlined,
-  EyeOutlined,
-  HomeOutlined,
-  SearchOutlined,
-  TableOutlined
-} from '@ant-design/icons'
+import { DatabaseOutlined, EyeOutlined, TableOutlined } from '@ant-design/icons'
 import { Menu, Tag } from 'antd'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import type { TableEntry } from '@shared/types'
+import { NAV_ROUTES } from '@/routes'
 
-/** 顶层视图：tables=表数据浏览，home=主页（图表），query=查询（SQL 编辑器） */
-export type ViewKey = 'tables' | 'home' | 'query'
-
-/** 表项 key 前缀：防止表名恰好叫 home/query 时与导航项 key 冲突 */
+/** 表项 key 前缀：防止表名与导航项（路径）key 冲突 */
 const TABLE_KEY_PREFIX = 'table:'
 
 interface SiderMenuProps {
@@ -20,35 +12,44 @@ interface SiderMenuProps {
 }
 
 /**
- * 侧边栏菜单：主页 / 表与视图（可折叠子菜单，默认展开）/ 查询。
- * 表项 key 带前缀避免与导航项冲突；后续新增功能在 items 中追加即可。
- * 选中态与导航均由 react-router 派生：pathname → 顶层视图，`?table=` → 当前表。
+ * 侧边栏菜单：导航项由 NAV_ROUTES 生成（key 即路由 path），表/视图子菜单单独渲染。
+ * 选中态与导航均由 react-router 派生：pathname → 菜单 key，`?table=` → 当前表。
  */
 export default function SiderMenu({ tables }: SiderMenuProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
 
-  const view: ViewKey =
-    location.pathname === '/query' ? 'query' : location.pathname === '/home' ? 'home' : 'tables'
-  const selected = view === 'tables' ? searchParams.get('table') : null
+  const isTablePage = location.pathname === '/table'
+  const selectedTable = isTablePage ? searchParams.get('table') : null
+  const selectedKeys =
+    isTablePage && selectedTable !== null
+      ? [`${TABLE_KEY_PREFIX}${selectedTable}`]
+      : isTablePage
+        ? ['tables']
+        : [location.pathname]
 
   return (
     <Menu
       theme="light"
       mode="inline"
-      selectedKeys={selected !== null ? [`${TABLE_KEY_PREFIX}${selected}`] : [view]}
+      selectedKeys={selectedKeys}
       defaultOpenKeys={['tables']}
       onClick={({ key }) => {
-        if (key === 'home' || key === 'query') {
-          navigate(`/${key}`)
-        } else if (key.startsWith(TABLE_KEY_PREFIX)) {
+        if (key.startsWith(TABLE_KEY_PREFIX)) {
           // 表名走查询参数（encodeURIComponent 防表名含 & / # 等特殊字符）
           navigate(`/table?table=${encodeURIComponent(key.slice(TABLE_KEY_PREFIX.length))}`)
+        } else if (key !== 'tables') {
+          // 导航项 key 即路由 path
+          navigate(key)
         }
       }}
       items={[
-        { key: 'home', icon: <HomeOutlined />, label: '主页' },
+        ...NAV_ROUTES.filter(r => r.menu !== false).map(r => ({
+          key: r.path,
+          icon: r.icon,
+          label: r.label
+        })),
         {
           key: 'tables',
           icon: <DatabaseOutlined />,
@@ -70,8 +71,7 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
                     </span>
                   )
                 }))
-        },
-        { key: 'query', icon: <SearchOutlined />, label: '查询' }
+        }
       ]}
     />
   )
