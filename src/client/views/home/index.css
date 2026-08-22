@@ -1,1 +1,50 @@
-/* 主页（预留图表区域）专属样式 */
+/* 主页（库总览 Dashboard）专属样式 */
+
+.home-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.home-stats {
+  margin-bottom: 24px;
+}
+
+.home-cards {
+  margin-bottom: 16px;
+}
+
+.home-card-name {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.home-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.home-card-field {
+  margin-left: 4px;
+}
+
+.home-type-icon {
+  font-size: 18px;
+  color: #52c41a;
+}
+
+.home-type-view {
+  color: #13c2c2;
+}
+
+.home-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}

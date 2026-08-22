@@ -3,7 +3,14 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import path from 'node:path'
-import { ApiError, handleRefresh, handleRows, handleTableInfo, handleTables } from './api.js'
+import {
+  ApiError,
+  handleOverview,
+  handleRefresh,
+  handleRows,
+  handleTableInfo,
+  handleTables
+} from './api.js'
 import type { SqliteDb } from './db.js'
 
 const MIME: Record<string, string> = {
@@ -113,6 +120,10 @@ async function handleApi(
   try {
     if (pathname === '/api/tables') {
       sendJson(res, 200, handleTables(db))
+      return
+    }
+    if (pathname === '/api/overview') {
+      sendJson(res, 200, handleOverview(db))
       return
     }
     const rowsMatch = pathname.match(/^\/api\/tables\/([^/]+)\/rows$/)

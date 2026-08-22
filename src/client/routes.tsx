@@ -5,7 +5,6 @@ import {
   SearchOutlined,
   TableOutlined
 } from '@ant-design/icons'
-import { Tag } from 'antd'
 import type { MenuProps } from 'antd'
 import type { ReactNode } from 'react'
 import type { TableEntry } from '@shared/types'
@@ -52,11 +51,6 @@ function renderTablesSubmenu({ tables }: MenuContext): MenuItem {
             label: (
               <span className="menu-item-label">
                 <span className="menu-item-name">{t.name}</span>
-                {t.type === 'view' && (
-                  <Tag color="cyan" className="menu-item-tag">
-                    视图
-                  </Tag>
-                )}
               </span>
             )
           }))

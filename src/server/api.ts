@@ -1,5 +1,6 @@
 import type {
   FilterCondition,
+  Overview,
   RowsResult,
   SortSpec,
   TableInfo,
@@ -21,6 +22,11 @@ export class ApiError extends Error {
 
 export function handleTables(db: SqliteDb): TableSchemaEntry[] {
   return db.listSchemas()
+}
+
+/** 库总览（主页 Dashboard） */
+export function handleOverview(db: SqliteDb): Overview {
+  return db.overview()
 }
 
 /** 刷新：清空行数缓存（外部可能改过库），由客户端随后重新拉取数据 */

@@ -103,6 +103,7 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 | 端点                                         | 说明                                                       |
 | -------------------------------------------- | ---------------------------------------------------------- |
 | `GET /api/tables`                            | 表/视图清单（表数 ≤50 时一次预取所有表头，更大库按需加载） |
+| `GET /api/overview`                          | 库总览（每表行数 + 总行数 + 库文件大小，复用行数缓存）     |
 | `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数）                              |
 | `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据（可选 `filter` / `sortBy` / `sortDir` 参数）      |
 | `POST /api/refresh`                          | 清空行数缓存（外部可能改过库）                             |

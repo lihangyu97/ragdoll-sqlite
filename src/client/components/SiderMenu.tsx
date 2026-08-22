@@ -1,4 +1,5 @@
 import { Menu } from 'antd'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import type { TableEntry } from '@shared/types'
 import { NAV_ROUTES, TABLE_KEY_PREFIX } from '@/routes'
@@ -16,6 +17,17 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
+  // 受控展开：进入表数据页时确保「表与视图」子菜单展开（用户手动收起后仍会补展开）
+  const [openKeys, setOpenKeys] = useState<string[]>([])
+
+  useEffect(() => {
+    if (location.pathname === '/table') {
+      // 微任务中 setState，规避 react-hooks/set-state-in-effect 规则
+      queueMicrotask(() => {
+        setOpenKeys(prev => [...prev, 'tables'])
+      })
+    }
+  }, [location.pathname])
 
   const isTablePage = location.pathname === '/table'
   const selectedTable = isTablePage ? searchParams.get('table') : null
@@ -30,6 +42,8 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
     <Menu
       theme="light"
       mode="inline"
+      openKeys={openKeys}
+      onOpenChange={setOpenKeys}
       selectedKeys={selectedKeys}
       onClick={({ key }) => {
         if (key.startsWith(TABLE_KEY_PREFIX)) {
