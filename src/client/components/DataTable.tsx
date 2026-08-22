@@ -1,20 +1,9 @@
 import { Descriptions, Modal, Popover, Table, Tag, type TableColumnsType } from 'antd'
 import { useEffect, useState } from 'react'
 import type { ColumnInfo, RowsResult } from '../../shared/types.js'
-import CellValue, { cellText } from './CellValue.js'
+import CellValue, { cellFullText } from './CellValue.js'
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100]
-/** 超过该显示宽度的文本单元格，hover 时用 Popover 展示完整内容（CJK 按 2 字符计） */
-const HOVER_POPOVER_MIN_WIDTH = 24
-
-/** 文本显示宽度：CJK/全角字符算 2，其余算 1 */
-function displayWidth(s: string): number {
-  let w = 0
-  for (const ch of s) {
-    w += /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF\u3000-\u303F]/.test(ch) ? 2 : 1
-  }
-  return w
-}
 
 interface DataTableProps {
   tableName: string
@@ -74,20 +63,14 @@ export default function DataTable({
       key: c.name,
       // 关闭原生 title，统一用 Popover 展示完整内容
       ellipsis: { showTitle: false },
-      render: (v: unknown) => {
-        const text = cellText(v)
-        // 长内容：包一层原生 span 让 Popover 能挂载 hover 事件（CellValue 不转发 props）
-        if (displayWidth(text) > HOVER_POPOVER_MIN_WIDTH) {
-          return (
-            <Popover trigger="hover" content={<div className="cell-popover-content">{text}</div>}>
-              <span>
-                <CellValue value={v} />
-              </span>
-            </Popover>
-          )
-        }
-        return <CellValue value={v} />
-      }
+      render: (v: unknown) => (
+        // 所有单元格统一 hover Popover 看完整内容（包原生 span 让 Popover 挂载 hover 事件）
+        <Popover trigger="hover" content={<div className="cell-popover-content">{cellFullText(v)}</div>}>
+          <span>
+            <CellValue value={v} />
+          </span>
+        </Popover>
+      )
     }))
   ]
 

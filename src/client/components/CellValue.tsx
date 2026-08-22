@@ -1,4 +1,3 @@
-import { Popover } from 'antd'
 import type { ReactNode } from 'react'
 import type { BlobValue } from '../../shared/types.js'
 
@@ -6,10 +5,14 @@ export function isBlobValue(value: unknown): value is BlobValue {
   return typeof value === 'object' && value !== null && (value as BlobValue).__blob === true
 }
 
-/** 单元格的展示文本（供 hover Popover 与行详情复用） */
-export function cellText(value: unknown): string {
+/** 单元格 hover 的完整展示文本：BLOB 带 hex 预览，其余为原始字符串 */
+export function cellFullText(value: unknown): string {
   if (value === null || value === undefined) return 'NULL'
-  if (isBlobValue(value)) return `BLOB(${value.bytes} bytes)`
+  if (isBlobValue(value)) {
+    const truncated = value.bytes > 16
+    const hex = value.hex.length > 0 ? ` · hex: ${value.hex}${truncated ? '…' : ''}` : ''
+    return `BLOB(${value.bytes} bytes)${hex}${truncated ? '（仅显示前 16 字节）' : ''}`
+  }
   return String(value)
 }
 
@@ -19,7 +22,7 @@ interface CellValueProps {
   full?: boolean
 }
 
-/** 单元格值渲染：NULL 灰显、BLOB 摘要、数字等宽 */
+/** 单元格值渲染：NULL 灰显、BLOB 摘要、数字等宽（hover 的完整内容由外层 Popover 提供） */
 export default function CellValue({ value, full = false }: CellValueProps): ReactNode {
   if (value === null || value === undefined) {
     return <span className="cell-null">NULL</span>
@@ -40,13 +43,7 @@ export default function CellValue({ value, full = false }: CellValueProps): Reac
         </span>
       )
     }
-    const preview =
-      value.hex.length > 0 ? `hex: ${value.hex}${value.bytes > 16 ? '…' : ''}` : '（空 BLOB）'
-    return (
-      <Popover trigger="hover" content={<span style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}>{preview}</span>}>
-        <span className="cell-blob">BLOB({value.bytes} bytes)</span>
-      </Popover>
-    )
+    return <span className="cell-blob">BLOB({value.bytes} bytes)</span>
   }
   const str = String(value)
   return typeof value === 'number' ? (
