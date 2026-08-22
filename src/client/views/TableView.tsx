@@ -35,6 +35,8 @@ export default function TableView({
         ? info.rowCount.toLocaleString()
         : '…'
 
+  const isView = schema.type === 'view'
+
   return (
     <>
       <div className="table-header">
@@ -42,9 +44,9 @@ export default function TableView({
           level={4}
           style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}
         >
-          {schema.type === 'view' ? <EyeOutlined /> : <TableOutlined />}
+          {isView ? <EyeOutlined /> : <TableOutlined />}
           {schema.name}
-          <Tag>{schema.type === 'view' ? '视图' : '表'}</Tag>
+          <Tag color={isView ? 'cyan' : 'green'}>{isView ? '视图' : '表'}</Tag>
           <Typography.Text type="secondary">共 {rowCountText} 行</Typography.Text>
         </Typography.Title>
       </div>

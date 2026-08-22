@@ -53,7 +53,14 @@ export default function DataTable({
             </span>
           }
         >
-          <span>{c.name}</span>
+          <span>
+            {c.name}
+            {c.pk > 0 ? (
+              <Tag style={{ marginLeft: 8 }} color="red">
+                主键
+              </Tag>
+            ) : null}
+          </span>
         </Popover>
       ),
       dataIndex: c.name,

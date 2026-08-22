@@ -28,7 +28,13 @@ interface TableListProps {
  * 侧边栏菜单：主页 / 表与视图（可折叠子菜单，默认展开）/ 查询。
  * 表项 key 带前缀避免与导航项冲突；后续新增功能在 items 中追加即可。
  */
-export default function TableList({ tables, selected, view, onSelectTable, onNavigate }: TableListProps) {
+export default function TableList({
+  tables,
+  selected,
+  view,
+  onSelectTable,
+  onNavigate
+}: TableListProps) {
   return (
     <Menu
       theme="light"
