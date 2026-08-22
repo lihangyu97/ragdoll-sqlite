@@ -15,12 +15,14 @@ body,
   overflow: hidden;
 }
 
-/* sider 内部纵向布局：logo 固定顶部、菜单弹性占满（表多时内部滚动）、触发器贴底 */
+/* sider 内部纵向布局：logo 固定顶部、菜单弹性占满、触发器贴底；
+   菜单过长时整个侧边栏滚动（官方长侧边栏的做法），菜单自身不产生滚动条 */
 .app-sider .ant-layout-sider-children {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* 顶部 logo 区 */
@@ -58,11 +60,9 @@ body,
 }
 
 /* 菜单占满中间区域，表多时内部滚动；预留滚动条轨道避免出现/消失时跳动闪烁 */
+/* 菜单完全使用官方样式：不设 overflow，绝不出现菜单内滚动条（子菜单动画不再闪） */
 .app-sider .ant-menu {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
 }
 
 .menu-item-label {
