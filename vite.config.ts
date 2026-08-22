@@ -1,9 +1,17 @@
+import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-import { DEV_API_PORT } from './src/shared/constants.js'
+import { DEV_API_PORT } from './src/shared/constants'
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      // 与 tsconfig.json 的 paths 保持一致（仅前端打包解析；服务端编译不走 vite）
+      '@': path.resolve(import.meta.dirname, 'src/client'),
+      '@shared': path.resolve(import.meta.dirname, 'src/shared')
+    }
+  },
   build: {
     outDir: 'dist/web',
     emptyOutDir: true

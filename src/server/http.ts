@@ -66,7 +66,9 @@ async function handleRequest(
   res: ServerResponse
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1')
-  const pathname = decodeURIComponent(url.pathname)
+  // pathname 保持编码形式参与路由匹配：表名可能含编码的 %2F（/），
+  // 若先整体解码会拆散路径段；匹配到的表名捕获组再单独解码
+  const pathname = url.pathname
 
   // ---- API ----
   if (pathname.startsWith('/api/')) {
@@ -117,7 +119,7 @@ async function handleApi(
     if (rowsMatch) {
       const result = handleRows(
         db,
-        rowsMatch[1],
+        decodeURIComponent(rowsMatch[1]),
         url.searchParams.get('page'),
         url.searchParams.get('pageSize'),
         url.searchParams.get('filter'),
@@ -129,7 +131,7 @@ async function handleApi(
     }
     const infoMatch = pathname.match(/^\/api\/tables\/([^/]+)$/)
     if (infoMatch) {
-      sendJson(res, 200, handleTableInfo(db, infoMatch[1]))
+      sendJson(res, 200, handleTableInfo(db, decodeURIComponent(infoMatch[1])))
       return
     }
     throw new ApiError(404, 'Not Found')
@@ -143,7 +145,7 @@ async function handleApi(
 }
 
 async function serveStatic(webDir: string, pathname: string, res: ServerResponse): Promise<void> {
-  const rel = pathname.replace(/^\/+/, '')
+  const rel = decodeURIComponent(pathname.replace(/^\/+/, ''))
   const filePath = path.normalize(path.join(webDir, rel))
   const webRoot = path.normalize(webDir)
   if (filePath !== webRoot && !filePath.startsWith(webRoot + path.sep)) {

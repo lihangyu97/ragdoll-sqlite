@@ -43,26 +43,31 @@ pnpm dev:server     # 开发模式后端（固定端口 7860，跳过 token 校�
 pnpm dev:web        # vite dev server（5173，/api 代理到 7860），前端热更新
 ```
 
-开发模式：先跑 `pnpm dev:server`，再跑 `pnpm dev:web`，浏览器打开 `http://127.0.0.1:5173/?t=dev`。指定要打开的数据库有两种方式（二者等价）：
+开发模式：先跑 `pnpm dev:server`，再跑 `pnpm dev:web`，浏览器打开 `http://127.0.0.1:5173/?t=dev`。指定要打开的数据库：
 
 ```bash
-# 方式一：位置参数（通过 -- 透传给脚本）
-pnpm dev:server -- ./data/app.db
+# 方式一：位置参数直接跟在命令后面（最简）
+pnpm dev:server ./data/app.db
 
 # 方式二：环境变量 RAGDOLL_DB（未传位置参数时生效）
 RAGDOLL_DB=./data/app.db pnpm dev:server
 ```
 
+前端路径别名（仅前端使用，服务端保持相对导入；`vite.config.ts` 与 `tsconfig.json` 两处需保持一致）：
+
+- `@/*` → `src/client/*`
+- `@shared/*` → `src/shared/*`
+
 ## 技术栈
 
-| 层     | 选型                                                       |
-| ------ | ---------------------------------------------------------- |
-| 语言   | TypeScript（strict）                                       |
-| SQLite | `better-sqlite3`（只读模式）                               |
-| 服务端 | Node 内置 `node:http`（静态托管 + REST API，无第三方框架） |
-| 前端   | React 19 + antd v6 + Vite（前后端分离 SPA，无 SSR）        |
-| 测试   | Node 内置 `node:test`                                      |
-| 包管理 | pnpm                                                       |
+| 层     | 选型                                                                             |
+| ------ | -------------------------------------------------------------------------------- |
+| 语言   | TypeScript（strict）                                                             |
+| SQLite | `better-sqlite3`（只读模式）                                                     |
+| 服务端 | Node 内置 `node:http`（静态托管 + REST API，无第三方框架）                       |
+| 前端   | React 19 + antd v6 + Vite + react-router（HashRouter）（前后端分离 SPA，无 SSR） |
+| 测试   | Node 内置 `node:test`                                                            |
+| 包管理 | pnpm                                                                             |
 
 ## 目录结构
 
@@ -76,11 +81,19 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 │   │   ├── http.ts         # node:http 服务器 + token 校验 + 静态托管
 │   │   ├── db.ts           # better-sqlite3 只读封装（探活/元数据/分页/序列化/行数缓存）
 │   │   └── api.ts          # REST API 处理器
-│   ├── client/             # 前端 SPA（React 19 + antd v6）
-│   │   ├── App.tsx          # 布局组装 + 表清单预取
-│   │   ├── useTableData.ts  # 选中表的数据获取 hook（详情/分页/序号守卫）
-│   │   ├── api.ts           # API 请求封装（token + 超时）
-│   │   └── components/      # 展示组件：TableList / DataTable / StructureTable / CellValue
+│   ├── client/             # 前端 SPA（React 19 + antd v6 + react-router）
+│   │   ├── App.tsx          # 布局组装 + 全局加载态 + 路由表（由 NAV_ROUTES 生成）
+│   │   ├── routes.tsx       # 顶层路由配置（单源：Routes 与 SiderMenu 共用）
+│   │   ├── SchemasContext.tsx  # 表清单全局预取（SchemasProvider + useSchemas）
+│   │   ├── api.ts           # API 层：业务函数（fetchTables / fetchTableInfo / fetchRows / refreshRowCountCache）
+│   │   ├── hooks/           # 数据获取 hooks：useTableData（详情/分页/序号守卫）
+│   │   ├── components/      # 全局共享组件：SiderMenu（侧边栏菜单）
+│   │   └── views/           # 页面视图（文件夹 + index.tsx，第一级只有页面，目录名 = 路由路径）
+│   │       ├── home/        # 主页（预留图表）
+│   │       ├── query/       # 查询（预留 SQL 编辑器）
+│   │       └── table/       # 表数据页：?table= 参数驱动，表/视图共用
+│   │           ├── index.css    # 页面专属样式（含 TableView 组件树）
+│   │           └── TableView/   # 页面主体组件（私有）：index.tsx + components/ + columnUtils.ts
 │   └── shared/             # 前后端共享：types.ts + constants.ts
 └── test/                   # 单元 + 集成测试（db.test.ts / api.test.ts）
 ```
@@ -91,13 +104,14 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 | -------------------------------------------- | ---------------------------------------------------------- |
 | `GET /api/tables`                            | 表/视图清单（表数 ≤50 时一次预取所有表头，更大库按需加载） |
 | `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数）                              |
-| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据                                                   |
+| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据（可选 `filter` / `sortBy` / `sortDir` 参数）      |
+| `POST /api/refresh`                          | 清空行数缓存（外部可能改过库）                             |
 
 所有请求需携带访问令牌 `?t=<token>`（CLI 启动时生成，拼在页面 URL 中）。
 
 ## Roadmap
 
-- 刷新当前表、按列查询/过滤（设计已定稿，见 [docs/ROADMAP.md](docs/ROADMAP.md)）
-- 列排序、导出 CSV / JSON
+- 刷新当前表、按列查询/过滤、列排序、路由化（已实现，见 [docs/ROADMAP.md](docs/ROADMAP.md)）
+- 导出 CSV / JSON
 - 只读 SQL 查询控制台（「查询」菜单占位页已就绪）
-- 顶部历史页签栏、URL 直达、深色模式、大表虚拟滚动
+- 顶部历史页签栏、深色模式、大表虚拟滚动、翻页状态进 URL

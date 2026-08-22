@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { BlobValue } from '../../shared/types.js'
+import type { BlobValue } from '@shared/types'
 
 export function isBlobValue(value: unknown): value is BlobValue {
   return typeof value === 'object' && value !== null && (value as BlobValue).__blob === true

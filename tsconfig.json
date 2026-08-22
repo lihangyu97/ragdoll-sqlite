@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    // 前端（vite 打包）用 bundler 解析，相对导入可省略 .js 后缀
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "strict": true,
@@ -10,7 +11,12 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    // 路径别名（与 vite.config.ts resolve.alias 一致；仅前端使用，服务端保持相对导入）
+    "paths": {
+      "@/*": ["./src/client/*"],
+      "@shared/*": ["./src/shared/*"]
+    }
   },
   "include": ["src", "test", "vite.config.ts"]
 }

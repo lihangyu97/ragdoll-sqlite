@@ -1,5 +1,5 @@
 import { Checkbox, Modal, Typography } from 'antd'
-import type { ColumnInfo } from '../../shared/types.js'
+import type { ColumnInfo } from '@shared/types'
 
 interface ColumnVisibilityModalProps {
   open: boolean

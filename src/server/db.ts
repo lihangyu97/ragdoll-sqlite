@@ -12,7 +12,7 @@ import type {
 } from '../shared/types.js'
 
 export const MAX_PAGE_SIZE = 50
-export const DEFAULT_PAGE_SIZE = 20
+export const DEFAULT_PAGE_SIZE = 10
 /** 表数超过该值时，/api/tables 不再预取全部字段（由客户端按需加载，避免启动慢） */
 export const SCHEMA_PREFETCH_THRESHOLD = 50
 

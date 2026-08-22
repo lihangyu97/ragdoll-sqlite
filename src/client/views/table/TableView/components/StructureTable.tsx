@@ -1,5 +1,5 @@
 import { Empty, Spin, Table, Tag, Typography } from 'antd'
-import type { ColumnInfo, ForeignKeyInfo, IndexInfo, TableInfo } from '../../shared/types.js'
+import type { ColumnInfo, ForeignKeyInfo, IndexInfo, TableInfo } from '@shared/types'
 
 interface StructureTableProps {
   /** 字段来自预取的 schema，立即可用 */

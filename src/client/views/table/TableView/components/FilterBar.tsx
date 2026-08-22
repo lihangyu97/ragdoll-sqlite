@@ -1,5 +1,5 @@
 import { Button, Tag } from 'antd'
-import type { FilterCondition } from '../../shared/types.js'
+import type { FilterCondition } from '@shared/types'
 
 const OP_TEXT: Record<string, string> = {
   eq: '=',

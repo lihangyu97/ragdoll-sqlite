@@ -1,3 +1,6 @@
+/* 全局样式：布局、侧边栏、共享工具类。
+   页面专属样式按 view 拆分到 views/<Page>/index.css */
+
 html,
 body,
 #root {
@@ -122,52 +125,11 @@ body,
   scrollbar-gutter: stable;
 }
 
-.table-header {
-  margin-bottom: 12px;
-}
-
+/* 跨页面共享：首次加载 / 局部加载遮罩 */
 .loading-wrap {
   display: flex;
   justify-content: center;
   padding: 80px 0;
-}
-
-.cell-null {
-  color: #bfbfbf;
-  font-style: italic;
-}
-
-.cell-blob {
-  color: #722ed1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-}
-
-.cell-text {
-  word-break: break-all;
-}
-
-.cell-number {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-/* 数据表格：整行可点击查看详情 */
-.data-table .ant-table-tbody > tr {
-  cursor: pointer;
-}
-
-/* 表格区域最小高度，避免首次加载/数据较少时塌缩导致滚动条闪烁 */
-.data-table .ant-table-content {
-  min-height: 360px;
-}
-
-/* 单元格长文本的 hover 完整内容 */
-.cell-popover-content {
-  max-width: 420px;
-  word-break: break-all;
-  white-space: pre-wrap;
-  font-size: 13px;
-  line-height: 1.6;
 }
 
 .ant-typography {

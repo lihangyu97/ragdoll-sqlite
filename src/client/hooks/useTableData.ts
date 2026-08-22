@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FilterCondition, RowsResult, SortSpec, TableInfo } from '../shared/types.js'
-import { apiFetch } from './api.js'
+import type { FilterCondition, RowsResult, SortSpec, TableInfo } from '@shared/types'
+import { fetchRows, fetchTableInfo, refreshRowCountCache } from '@/api'
 
 export interface UseTableData {
-  selected: string | null
-  select: (name: string) => void
   info: TableInfo | null
   rows: RowsResult | null
   loadingRows: boolean
@@ -24,12 +22,12 @@ export interface UseTableData {
 
 /**
  * 选中表的数据获取：结构详情 + 分页数据 + 按列过滤。
- * - 请求序号守卫：切换表/翻页/改过滤后丢弃过期响应，避免旧数据覆盖新状态
- * - 切换表时保留旧行（loading 遮罩下）避免表格塌缩；加载失败则清空，防止“新表头 + 旧数据”
- * - 过滤条件按表持有：切表清空、修改后回到第 1 页
+ * - `selected` 由外部（路由 URL）派生，本 hook 不再持有选中态
+ * - 请求序号守卫：切表/翻页/改过滤后丢弃过期响应，避免旧数据覆盖新状态
+ * - 切换表时清空过滤/排序/翻页（按表持有语义），旧行保留在 loading 遮罩下避免表格塌缩
+ * - 隐藏列按表记忆：切走再切回仍保留；刷新不清除
  */
-export function useTableData(): UseTableData {
-  const [selected, setSelected] = useState<string | null>(null)
+export function useTableData(selected: string | null): UseTableData {
   const [info, setInfo] = useState<TableInfo | null>(null)
   const [rows, setRows] = useState<RowsResult | null>(null)
   const [page, setPage] = useState(1)
@@ -44,25 +42,29 @@ export function useTableData(): UseTableData {
   const [hiddenByTable, setHiddenByTable] = useState<Record<string, string[]>>({})
   const infoSeq = useRef(0)
   const rowsSeq = useRef(0)
-  const selectedRef = useRef<string | null>(null)
+  /** 最近一次发起过请求的表（切表判断用） */
+  const lastSelectedRef = useRef<string | null>(null)
 
-  const select = useCallback((name: string) => {
-    if (selectedRef.current === name) return
-    selectedRef.current = name
-    setSelected(name)
-    setPage(1)
-    setInfo(null)
-    setDataError(null)
-    setFiltersState([]) // 过滤条件按表持有，切表清空
-    setSortState(null) // 排序同样按表持有，切表清空
-    // rows 不清空：旧行保留在 loading 遮罩下，避免表格塌缩导致滚动条闪烁
-  }, [])
+  // 切表重置：分页/结构/过滤/排序/错误回到初始值（按表持有，切表即清空）。
+  // 与数据 effect 同轮触发，重置的 setState 到下一渲染才生效。
+  useEffect(() => {
+    // 微任务中 setState，规避 react-hooks/set-state-in-effect 规则
+    queueMicrotask(() => {
+      setPage(1)
+      setPageSize(10)
+      setInfo(null)
+      setDataError(null)
+      setFiltersState([])
+      setSortState(null)
+      // rows 不清空：旧行保留在 loading 遮罩下，避免表格塌缩导致滚动条闪烁
+    })
+  }, [selected])
 
   // 结构详情（外键/索引；字段已由 schema 预取，无需等待）
   useEffect(() => {
     if (!selected) return
     const seq = ++infoSeq.current
-    apiFetch<TableInfo>(`/api/tables/${encodeURIComponent(selected)}`)
+    fetchTableInfo(selected)
       .then(data => {
         if (seq !== infoSeq.current) return // 过期响应，丢弃
         setDataError(null)
@@ -77,19 +79,21 @@ export function useTableData(): UseTableData {
   // 分页数据（带过滤条件）
   useEffect(() => {
     if (!selected) return
+    const prev = lastSelectedRef.current
+    lastSelectedRef.current = selected
+    if (prev !== null && prev !== selected) {
+      // 切表：跳过本轮（重置的 setState 尚未生效），避免用旧表的 filters/sort 请求新表；
+      // 递增 seq 使切表前 in-flight 的旧表响应失效，下一轮（重置完成）再正常拉取
+      rowsSeq.current++
+      return
+    }
     const seq = ++rowsSeq.current
     // 在微任务中置 loading：请求开始时及时显示遮罩，
     // 同时避免在 effect 体内同步 setState（react-hooks/set-state-in-effect）
     queueMicrotask(() => {
       if (seq === rowsSeq.current) setLoadingRows(true)
     })
-    const params: Record<string, string | number> = { page, pageSize }
-    if (filters.length > 0) params.filter = JSON.stringify(filters)
-    if (sort) {
-      params.sortBy = sort.column
-      params.sortDir = sort.direction
-    }
-    apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, params)
+    fetchRows(selected, { page, pageSize, filters, sort })
       .then(data => {
         if (seq !== rowsSeq.current) return
         setDataError(null)
@@ -129,7 +133,7 @@ export function useTableData(): UseTableData {
   const refresh = useCallback(() => {
     setFiltersState([])
     setDataError(null)
-    apiFetch<{ ok: boolean }>('/api/refresh', {}, { method: 'POST' })
+    refreshRowCountCache()
       .catch(() => {
         // 旧版服务端没有该端点时忽略，数据仍会刷新（行数可能走缓存）
       })
@@ -155,8 +159,6 @@ export function useTableData(): UseTableData {
   )
 
   return {
-    selected,
-    select,
     info,
     rows,
     loadingRows,
