@@ -1,18 +1,15 @@
-import { DatabaseOutlined, EyeOutlined, TableOutlined } from '@ant-design/icons'
-import { Menu, Tag } from 'antd'
+import { Menu } from 'antd'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import type { TableEntry } from '@shared/types'
-import { NAV_ROUTES } from '@/routes'
-
-/** 表项 key 前缀：防止表名与导航项（路径）key 冲突 */
-const TABLE_KEY_PREFIX = 'table:'
+import { NAV_ROUTES, TABLE_KEY_PREFIX } from '@/routes'
 
 interface SiderMenuProps {
   tables: TableEntry[]
 }
 
 /**
- * 侧边栏菜单：导航项由 NAV_ROUTES 生成（key 即路由 path），表/视图子菜单单独渲染。
+ * 侧边栏菜单：通用渲染器。items 完全由 NAV_ROUTES 按数组顺序生成（顺序即菜单顺序）；
+ * 普通项渲染为 导航项（key=path），自定义菜单项调用各自的 menuRender（渲染逻辑由配置自持有）。
  * 选中态与导航均由 react-router 派生：pathname → 菜单 key，`?table=` → 当前表。
  */
 export default function SiderMenu({ tables }: SiderMenuProps) {
@@ -34,7 +31,6 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
       theme="light"
       mode="inline"
       selectedKeys={selectedKeys}
-      defaultOpenKeys={['tables']}
       onClick={({ key }) => {
         if (key.startsWith(TABLE_KEY_PREFIX)) {
           // 表名走查询参数（encodeURIComponent 防表名含 & / # 等特殊字符）
@@ -44,35 +40,9 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
           navigate(key)
         }
       }}
-      items={[
-        ...NAV_ROUTES.filter(r => r.menu !== false).map(r => ({
-          key: r.path,
-          icon: r.icon,
-          label: r.label
-        })),
-        {
-          key: 'tables',
-          icon: <DatabaseOutlined />,
-          label: '表与视图',
-          children:
-            tables.length === 0
-              ? [{ key: 'empty', disabled: true, label: '数据库中没有表或视图' }]
-              : tables.map(t => ({
-                  key: `${TABLE_KEY_PREFIX}${t.name}`,
-                  icon: t.type === 'view' ? <EyeOutlined /> : <TableOutlined />,
-                  label: (
-                    <span className="menu-item-label">
-                      <span className="menu-item-name">{t.name}</span>
-                      {t.type === 'view' && (
-                        <Tag color="cyan" className="menu-item-tag">
-                          视图
-                        </Tag>
-                      )}
-                    </span>
-                  )
-                }))
-        }
-      ]}
+      items={NAV_ROUTES.map(r =>
+        r.menuRender ? r.menuRender({ tables }) : { key: r.path, icon: r.icon, label: r.label }
+      )}
     />
   )
 }
