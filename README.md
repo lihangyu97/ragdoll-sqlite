@@ -97,7 +97,7 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 
 ## Roadmap
 
-- 列排序、条件过滤
-- 只读 SQL 查询控制台
-- 导出 CSV / JSON
-- 深色模式、大表虚拟滚动
+- 刷新当前表、按列查询/过滤（设计已定稿，见 [docs/ROADMAP.md](docs/ROADMAP.md)）
+- 列排序、导出 CSV / JSON
+- 只读 SQL 查询控制台（「查询」菜单占位页已就绪）
+- 顶部历史页签栏、URL 直达、深色模式、大表虚拟滚动

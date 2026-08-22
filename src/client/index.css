@@ -169,3 +169,7 @@ body,
   font-size: 13px;
   line-height: 1.6;
 }
+
+.ant-typography {
+  margin-top: 0;
+}
