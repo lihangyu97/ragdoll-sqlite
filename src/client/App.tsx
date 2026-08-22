@@ -35,6 +35,11 @@ export default function App() {
   useEffect(() => {
     apiFetch<TableSchemaEntry[]>('/api/tables')
       .then((list) => {
+        // 防御：旧版服务端进程不返回 columns，导致页面白屏，给明确提示
+        if (!list.every((s) => Array.isArray(s.columns))) {
+          setTablesError('服务端响应缺少表字段信息。可能是旧的服务进程仍在运行，请先停止旧的 ragdoll-sqlite 再重新启动。')
+          return
+        }
         setSchemas(list)
         if (list.length > 0) setSelected(list[0].name)
       })
