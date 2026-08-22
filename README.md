@@ -56,7 +56,7 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 | 语言 | TypeScript（strict） |
 | SQLite | `better-sqlite3`（只读模式） |
 | 服务端 | Node 内置 `node:http`（静态托管 + REST API，无第三方框架） |
-| 前端 | React 18 + antd v5 + Vite（前后端分离 SPA，无 SSR） |
+| 前端 | React 19 + antd v6 + Vite（前后端分离 SPA，无 SSR） |
 | 测试 | Node 内置 `node:test` |
 | 包管理 | pnpm |
 

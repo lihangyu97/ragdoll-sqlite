@@ -345,7 +345,7 @@ export default function App() {
       <Content className="app-content">
         {!info ? (
           dataError ? (
-            <Alert type="error" showIcon message={dataError} />
+            <Alert type="error" showIcon title={dataError} />
           ) : (
             <div className="loading-wrap">
               <Spin size="large" />
@@ -365,10 +365,9 @@ export default function App() {
               <Alert
                 type="error"
                 showIcon
-                message={dataError}
+                title={dataError}
                 style={{ marginBottom: 12 }}
-                closable
-                onClose={() => setDataError(null)}
+                closable={{ onClose: () => setDataError(null) }}
               />
             )}
             <Tabs
