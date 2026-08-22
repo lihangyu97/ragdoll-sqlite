@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FilterCondition, RowsResult, SortSpec, TableInfo } from '../shared/types.js'
 import { apiFetch } from './api.js'
 
@@ -18,6 +18,8 @@ export interface UseTableData {
   sort: SortSpec | null
   setSort: (sort: SortSpec | null) => void
   refresh: () => void
+  hidden: ReadonlySet<string>
+  toggleColumnHidden: (name: string) => void
 }
 
 /**
@@ -38,6 +40,8 @@ export function useTableData(): UseTableData {
   const [sort, setSortState] = useState<SortSpec | null>(null)
   /** 刷新计数：让 info/rows effect 无条件重跑（筛选本来就为空时也需要） */
   const [refreshSeq, setRefreshSeq] = useState(0)
+  /** 隐藏列（前端展示偏好，按表记忆；刷新不清除） */
+  const [hiddenByTable, setHiddenByTable] = useState<Record<string, string[]>>({})
   const infoSeq = useRef(0)
   const rowsSeq = useRef(0)
   const selectedRef = useRef<string | null>(null)
@@ -132,6 +136,24 @@ export function useTableData(): UseTableData {
       .finally(() => setRefreshSeq(s => s + 1))
   }, [])
 
+  // 当前表的隐藏列集合（按表记忆，切表后回来仍保留；刷新不清除）
+  const hidden = useMemo(
+    () => new Set(selected ? (hiddenByTable[selected] ?? []) : []),
+    [selected, hiddenByTable]
+  )
+
+  const toggleColumnHidden = useCallback(
+    (name: string) => {
+      setHiddenByTable(prev => {
+        if (!selected) return prev
+        const current = prev[selected] ?? []
+        const next = current.includes(name) ? current.filter(c => c !== name) : [...current, name]
+        return { ...prev, [selected]: next }
+      })
+    },
+    [selected]
+  )
+
   return {
     selected,
     select,
@@ -147,6 +169,8 @@ export function useTableData(): UseTableData {
     setFilters,
     sort,
     setSort,
-    refresh
+    refresh,
+    hidden,
+    toggleColumnHidden
   }
 }

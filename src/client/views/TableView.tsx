@@ -3,7 +3,8 @@ import {
   FilterOutlined,
   ReloadOutlined,
   SortAscendingOutlined,
-  TableOutlined
+  TableOutlined,
+  UnorderedListOutlined
 } from '@ant-design/icons'
 import { Alert, Button, Space, Spin, Tabs, Tag, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
@@ -15,6 +16,7 @@ import type {
   TableInfo,
   TableSchemaEntry
 } from '../../shared/types.js'
+import ColumnVisibilityModal from '../components/ColumnVisibilityModal.js'
 import DataTable from '../components/DataTable.js'
 import FilterBar from '../components/FilterBar.js'
 import FilterModal from '../components/FilterModal.js'
@@ -36,6 +38,8 @@ interface TableViewProps {
   sort: SortSpec | null
   onSortChange: (sort: SortSpec | null) => void
   onRefresh: () => void
+  hidden: ReadonlySet<string>
+  onToggleColumnHidden: (name: string) => void
 }
 
 /** 表数据浏览视图：表头（名称/类型/行数/刷新/查询/排序）+ 数据/结构 Tabs（数据可按列过滤、排序） */
@@ -52,10 +56,13 @@ export default function TableView({
   onFiltersChange,
   sort,
   onSortChange,
-  onRefresh
+  onRefresh,
+  hidden,
+  onToggleColumnHidden
 }: TableViewProps) {
   const [queryOpen, setQueryOpen] = useState(false)
   const [sortOpen, setSortOpen] = useState(false)
+  const [columnsOpen, setColumnsOpen] = useState(false)
   const rowCountText = loadingRows
     ? '…'
     : rows
@@ -91,6 +98,13 @@ export default function TableView({
           </Button>
           <Button size="small" icon={<SortAscendingOutlined />} onClick={() => setSortOpen(true)}>
             排序
+          </Button>
+          <Button
+            size="small"
+            icon={<UnorderedListOutlined />}
+            onClick={() => setColumnsOpen(true)}
+          >
+            字段
           </Button>
         </Typography.Title>
       </div>
@@ -133,6 +147,7 @@ export default function TableView({
                     key={schema.name}
                     tableName={schema.name}
                     columns={columns}
+                    hiddenColumns={hidden}
                     rows={rows}
                     loading={loadingRows}
                     onPageChange={onPageChange}
@@ -167,6 +182,13 @@ export default function TableView({
           onSortChange(next)
           setSortOpen(false)
         }}
+      />
+      <ColumnVisibilityModal
+        open={columnsOpen}
+        columns={columns}
+        hidden={hidden}
+        onCancel={() => setColumnsOpen(false)}
+        onToggle={onToggleColumnHidden}
       />
     </>
   )

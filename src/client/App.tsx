@@ -34,7 +34,9 @@ export default function App() {
     setFilters,
     sort,
     setSort,
-    refresh
+    refresh,
+    hidden,
+    toggleColumnHidden
   } = useTableData()
 
   // 初始加载：表/视图清单 + 字段预取（一次请求），并自动选中第一个
@@ -136,6 +138,8 @@ export default function App() {
             sort={sort}
             onSortChange={setSort}
             onRefresh={refresh}
+            hidden={hidden}
+            onToggleColumnHidden={toggleColumnHidden}
           />
         )}
       </Content>

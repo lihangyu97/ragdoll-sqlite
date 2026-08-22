@@ -9,6 +9,8 @@ interface DataTableProps {
   tableName: string
   /** 列定义来自预取的 schema，切换表时立即可用 */
   columns: ColumnInfo[]
+  /** 隐藏列（仅前端展示，行详情弹窗仍显示全部字段） */
+  hiddenColumns?: ReadonlySet<string>
   /** 行数据可能尚未加载（null 时表格仅显示表头 + 内部 loading） */
   rows: RowsResult | null
   loading: boolean
@@ -25,6 +27,7 @@ interface DataTableProps {
 export default function DataTable({
   tableName,
   columns,
+  hiddenColumns,
   rows,
   loading,
   onPageChange
@@ -32,6 +35,7 @@ export default function DataTable({
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null)
 
   // 切换表时由 App 通过 key={tableName} 重挂载本组件，行详情弹窗自动关闭
+  const visibleColumns = hiddenColumns ? columns.filter(c => !hiddenColumns.has(c.name)) : columns
 
   const tableColumns: TableColumnsType<Record<string, unknown>> = [
     {
@@ -40,7 +44,7 @@ export default function DataTable({
       width: 60,
       render: (_v, record) => <span className="cell-number">{String(record.__row)}</span>
     },
-    ...columns.map((c: ColumnInfo) => ({
+    ...visibleColumns.map((c: ColumnInfo) => ({
       title: (
         <Popover
           trigger="hover"
