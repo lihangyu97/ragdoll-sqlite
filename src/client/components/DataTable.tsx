@@ -7,8 +7,8 @@ const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500]
 const MAX_COLUMN_WIDTH = 180
 /** 文本列拉伸上限：窄表铺满容器时单列最大宽度，避免极端宽列 */
 const MAX_FLEX_COLUMN_WIDTH = 480
-/** 铺满计算的安全余量：预留横向滚动条出现/消失的 15px 波动，避免表宽略超容器 */
-const FILL_SAFETY_MARGIN = 16
+/** 铺满计算的安全余量：仅防 sub-pixel 舍入，避免表宽略超容器出现多余滚动条 */
+const FILL_SAFETY_MARGIN = 4
 /** 超过该显示宽度的文本单元格，hover 时用 Popover 展示完整内容（CJK 按 2 字符计） */
 const HOVER_POPOVER_MIN_WIDTH = 24
 

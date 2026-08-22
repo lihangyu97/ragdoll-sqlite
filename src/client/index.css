@@ -161,10 +161,8 @@ body,
   max-width: 180px;
 }
 
-/* 横向滚动区域：预留滚动条轨道（出现/消失不再引起宽度跳动），
-   并给最小高度避免首次加载/数据较少时表格塌缩导致滚动条闪烁 */
+/* 表格区域最小高度，避免首次加载/数据较少时塌缩导致滚动条闪烁 */
 .data-table .ant-table-content {
-  scrollbar-gutter: stable;
   min-height: 360px;
 }
 
