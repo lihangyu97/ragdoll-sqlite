@@ -17,26 +17,26 @@ export default function StructureTable({ info }: { info: TableInfo }) {
           {
             title: '类型',
             dataIndex: 'type',
-            render: (t: string) => (t ? <Tag>{t}</Tag> : <span className="cell-null">—</span>),
+            render: (t: string) => (t ? <Tag>{t}</Tag> : <span className="cell-null">—</span>)
           },
           {
             title: '主键',
             dataIndex: 'pk',
             width: 80,
-            render: (v: number) => (v > 0 ? <Tag color="gold">PK-{v}</Tag> : null),
+            render: (v: number) => (v > 0 ? <Tag color="gold">PK-{v}</Tag> : null)
           },
           {
             title: '非空',
             dataIndex: 'notNull',
             width: 90,
-            render: (v: boolean) => (v ? <Tag color="red">NOT NULL</Tag> : null),
+            render: (v: boolean) => (v ? <Tag color="red">NOT NULL</Tag> : null)
           },
           {
             title: '默认值',
             dataIndex: 'defaultValue',
             render: (v: unknown) =>
-              v === null || v === undefined ? <span className="cell-null">—</span> : String(v),
-          },
+              v === null || v === undefined ? <span className="cell-null">—</span> : String(v)
+          }
         ]}
       />
 
@@ -57,10 +57,10 @@ export default function StructureTable({ info }: { info: TableInfo }) {
             {
               title: '→ 引用字段',
               dataIndex: 'to',
-              render: (v: string | null) => v ?? <span className="cell-null">—</span>,
+              render: (v: string | null) => v ?? <span className="cell-null">—</span>
             },
             { title: '更新', dataIndex: 'onUpdate' },
-            { title: '删除', dataIndex: 'onDelete' },
+            { title: '删除', dataIndex: 'onDelete' }
           ]}
         />
       )}
@@ -82,20 +82,20 @@ export default function StructureTable({ info }: { info: TableInfo }) {
               title: '唯一',
               dataIndex: 'unique',
               width: 70,
-              render: (v: boolean) => (v ? <Tag color="blue">唯一</Tag> : null),
+              render: (v: boolean) => (v ? <Tag color="blue">唯一</Tag> : null)
             },
             { title: '类型', dataIndex: 'origin', width: 90 },
             {
               title: '部分',
               dataIndex: 'partial',
               width: 70,
-              render: (v: boolean) => (v ? '是' : '否'),
+              render: (v: boolean) => (v ? '是' : '否')
             },
             {
               title: '字段',
               dataIndex: 'columns',
-              render: (cols: string[]) => cols.map((c) => <Tag key={c}>{c}</Tag>),
-            },
+              render: (cols: string[]) => cols.map(c => <Tag key={c}>{c}</Tag>)
+            }
           ]}
         />
       )}

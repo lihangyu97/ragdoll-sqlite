@@ -51,14 +51,14 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 
 ## 技术栈
 
-| 层 | 选型 |
-|---|---|
-| 语言 | TypeScript（strict） |
-| SQLite | `better-sqlite3`（只读模式） |
+| 层     | 选型                                                       |
+| ------ | ---------------------------------------------------------- |
+| 语言   | TypeScript（strict）                                       |
+| SQLite | `better-sqlite3`（只读模式）                               |
 | 服务端 | Node 内置 `node:http`（静态托管 + REST API，无第三方框架） |
-| 前端 | React 19 + antd v6 + Vite（前后端分离 SPA，无 SSR） |
-| 测试 | Node 内置 `node:test` |
-| 包管理 | pnpm |
+| 前端   | React 19 + antd v6 + Vite（前后端分离 SPA，无 SSR）        |
+| 测试   | Node 内置 `node:test`                                      |
+| 包管理 | pnpm                                                       |
 
 ## 目录结构
 
@@ -82,11 +82,11 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 
 ## API
 
-| 端点 | 说明 |
-|---|---|
-| `GET /api/tables` | 表/视图清单 |
-| `GET /api/tables/:name` | 表结构（字段/外键/索引/行数） |
-| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据 |
+| 端点                                         | 说明                          |
+| -------------------------------------------- | ----------------------------- |
+| `GET /api/tables`                            | 表/视图清单                   |
+| `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数） |
+| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据                      |
 
 所有请求需携带访问令牌 `?t=<token>`（CLI 启动时生成，拼在页面 URL 中）。
 

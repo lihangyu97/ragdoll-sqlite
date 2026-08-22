@@ -31,11 +31,11 @@ export default function App() {
   // 初始加载表/视图清单，并自动选中第一个
   useEffect(() => {
     apiFetch<TableEntry[]>('/api/tables')
-      .then((list) => {
+      .then(list => {
         setTables(list)
         if (list.length > 0) setSelected(list[0].name)
       })
-      .catch((err) => setTablesError((err as Error).message))
+      .catch(err => setTablesError((err as Error).message))
   }, [])
 
   const selectTable = useCallback((name: string) => {
@@ -51,12 +51,12 @@ export default function App() {
     if (!selected) return
     const seq = ++infoSeq.current
     apiFetch<TableInfo>(`/api/tables/${encodeURIComponent(selected)}`)
-      .then((data) => {
+      .then(data => {
         if (seq !== infoSeq.current) return // 过期响应，丢弃
         setDataError(null)
         setInfo(data)
       })
-      .catch((err) => {
+      .catch(err => {
         if (seq !== infoSeq.current) return
         setDataError((err as Error).message)
       })
@@ -68,12 +68,12 @@ export default function App() {
     const seq = ++rowsSeq.current
     setLoadingRows(true)
     apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, { page, pageSize })
-      .then((data) => {
+      .then(data => {
         if (seq !== rowsSeq.current) return
         setDataError(null)
         setRows(data)
       })
-      .catch((err) => {
+      .catch(err => {
         if (seq !== rowsSeq.current) return
         setDataError((err as Error).message)
       })
@@ -109,7 +109,12 @@ export default function App() {
         onCollapse={setCollapsed}
         className="app-sider"
       >
-        <TableList tables={tables} selected={selected} collapsed={collapsed} onSelect={selectTable} />
+        <TableList
+          tables={tables}
+          selected={selected}
+          collapsed={collapsed}
+          onSelect={selectTable}
+        />
       </Sider>
 
       <Content className="app-content">
@@ -165,9 +170,9 @@ export default function App() {
                     </div>
                   ) : (
                     <Empty description="暂无数据" />
-                  ),
+                  )
                 },
-                { key: 'structure', label: '结构', children: <StructureTable info={info} /> },
+                { key: 'structure', label: '结构', children: <StructureTable info={info} /> }
               ]}
             />
           </>

@@ -17,7 +17,7 @@ const MIME: Record<string, string> = {
   '.json': 'application/json; charset=utf-8',
   '.map': 'application/json; charset=utf-8',
   '.woff2': 'font/woff2',
-  '.woff': 'font/woff',
+  '.woff': 'font/woff'
 }
 
 export interface ServerHandle {
@@ -53,9 +53,9 @@ export async function startServer(options: ServerOptions): Promise<ServerHandle>
     port,
     url,
     close: () =>
-      new Promise<void>((resolve) => {
+      new Promise<void>(resolve => {
         server.close(() => resolve())
-      }),
+      })
   }
 }
 
@@ -63,7 +63,7 @@ async function handleRequest(
   options: ServerOptions,
   token: string,
   req: IncomingMessage,
-  res: ServerResponse,
+  res: ServerResponse
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1')
   const pathname = decodeURIComponent(url.pathname)
@@ -96,7 +96,7 @@ async function handleApi(
   db: SqliteDb,
   pathname: string,
   url: URL,
-  res: ServerResponse,
+  res: ServerResponse
 ): Promise<void> {
   try {
     if (pathname === '/api/tables') {
@@ -109,7 +109,7 @@ async function handleApi(
         db,
         rowsMatch[1],
         url.searchParams.get('page'),
-        url.searchParams.get('pageSize'),
+        url.searchParams.get('pageSize')
       )
       sendJson(res, 200, result)
       return
@@ -142,7 +142,7 @@ async function serveStatic(webDir: string, pathname: string, res: ServerResponse
     const ext = path.extname(filePath).toLowerCase()
     res.writeHead(200, {
       'content-type': MIME[ext] ?? 'application/octet-stream',
-      'cache-control': pathname.endsWith('.html') ? 'no-store' : 'public, max-age=3600',
+      'cache-control': pathname.endsWith('.html') ? 'no-store' : 'public, max-age=3600'
     })
     res.end(data)
   } catch {
@@ -154,7 +154,7 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
-    'x-content-type-options': 'nosniff',
+    'x-content-type-options': 'nosniff'
   })
   res.end(JSON.stringify(body))
 }

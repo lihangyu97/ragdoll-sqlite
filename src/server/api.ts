@@ -6,7 +6,7 @@ import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from './db.js'
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
-    message: string,
+    message: string
   ) {
     super(message)
     this.name = 'ApiError'
@@ -30,7 +30,7 @@ export function handleRows(
   db: SqliteDb,
   name: string,
   pageRaw: string | null,
-  pageSizeRaw: string | null,
+  pageSizeRaw: string | null
 ): RowsResult {
   if (!name) throw new ApiError(400, '缺少表名')
   const page = pageRaw === null ? 1 : Number(pageRaw)

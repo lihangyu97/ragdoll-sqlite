@@ -48,15 +48,18 @@ describe('SqliteDb', () => {
   it('只读打开并列出表/视图（排除 sqlite_% 内部表）', () => {
     const db = SqliteDb.open(dbPath)
     try {
-      const names = db.listTables().map((t) => t.name)
+      const names = db.listTables().map(t => t.name)
       assert.ok(names.includes('users'))
       assert.ok(names.includes('orders'))
       assert.ok(names.includes('adult_users'))
       assert.ok(names.includes('weird"name'))
-      assert.ok(!names.some((n) => n.startsWith('sqlite_')))
+      assert.ok(!names.some(n => n.startsWith('sqlite_')))
       assert.deepEqual(
-        db.listTables().filter((t) => t.type === 'view').map((v) => v.name),
-        ['adult_users'],
+        db
+          .listTables()
+          .filter(t => t.type === 'view')
+          .map(v => v.name),
+        ['adult_users']
       )
     } finally {
       db.close()
@@ -69,9 +72,9 @@ describe('SqliteDb', () => {
       const users = db.tableInfo('users')
       assert.equal(users.type, 'table')
       assert.equal(users.columns.length, 6)
-      const id = users.columns.find((c) => c.name === 'id')!
+      const id = users.columns.find(c => c.name === 'id')!
       assert.equal(id.pk, 1)
-      const name = users.columns.find((c) => c.name === 'name')!
+      const name = users.columns.find(c => c.name === 'name')!
       assert.equal(name.notNull, true)
       assert.equal(users.rowCount, 35)
 
@@ -83,13 +86,13 @@ describe('SqliteDb', () => {
       assert.equal(fk.to, 'id')
       assert.equal(fk.onDelete, 'CASCADE')
 
-      const indexNames = users.indexes.map((i) => i.name).sort()
+      const indexNames = users.indexes.map(i => i.name).sort()
       assert.deepEqual(indexNames, ['idx_users_age', 'idx_users_name'])
-      const ageIdx = users.indexes.find((i) => i.name === 'idx_users_age')!
+      const ageIdx = users.indexes.find(i => i.name === 'idx_users_age')!
       assert.equal(ageIdx.unique, true)
       assert.equal(ageIdx.partial, true)
       assert.deepEqual(ageIdx.columns, ['age'])
-      const nameIdx = users.indexes.find((i) => i.name === 'idx_users_name')!
+      const nameIdx = users.indexes.find(i => i.name === 'idx_users_name')!
       assert.equal(nameIdx.unique, false)
       assert.deepEqual(nameIdx.columns, ['name'])
     } finally {
@@ -102,7 +105,10 @@ describe('SqliteDb', () => {
     try {
       const view = db.tableInfo('adult_users')
       assert.equal(view.type, 'view')
-      assert.deepEqual(view.columns.map((c) => c.name), ['id', 'name'])
+      assert.deepEqual(
+        view.columns.map(c => c.name),
+        ['id', 'name']
+      )
     } finally {
       db.close()
     }
@@ -119,11 +125,11 @@ describe('SqliteDb', () => {
       assert.equal(page2.rows[0].id, 11)
       // __row 连续且跨页不重复
       assert.deepEqual(
-        page2.rows.map((r) => r.__row),
-        [11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+        page2.rows.map(r => r.__row),
+        [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
       )
 
-      const blobRow = page2.rows.find((r) => r.avatar !== null) as {
+      const blobRow = page2.rows.find(r => r.avatar !== null) as {
         avatar: { __blob: true; bytes: number; hex: string }
       }
       assert.ok(blobRow)
@@ -163,13 +169,10 @@ describe('SqliteDb', () => {
   it('只读连接下写入被 SQLite 拒绝', () => {
     const db = SqliteDb.open(dbPath)
     try {
-      assert.throws(
-        () => {
-          const raw = new Database(dbPath, { readonly: true })
-          raw.prepare('DELETE FROM users').run()
-        },
-        /readonly|只读/i,
-      )
+      assert.throws(() => {
+        const raw = new Database(dbPath, { readonly: true })
+        raw.prepare('DELETE FROM users').run()
+      }, /readonly|只读/i)
     } finally {
       db.close()
     }
@@ -187,7 +190,7 @@ describe('serializeValue', () => {
     assert.deepEqual(serializeValue(Buffer.from([1, 2, 3])), {
       __blob: true,
       bytes: 3,
-      hex: '010203',
+      hex: '010203'
     })
     assert.equal(serializeValue(123n), '123')
     assert.equal(serializeValue(null), null)

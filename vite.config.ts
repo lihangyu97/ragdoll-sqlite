@@ -8,12 +8,12 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist/web',
-    emptyOutDir: true,
+    emptyOutDir: true
   },
   server: {
     port: 5173,
     proxy: {
-      '/api': `http://127.0.0.1:${DEV_API_PORT}`,
-    },
-  },
+      '/api': `http://127.0.0.1:${DEV_API_PORT}`
+    }
+  }
 })

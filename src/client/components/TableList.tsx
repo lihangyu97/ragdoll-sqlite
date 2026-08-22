@@ -25,7 +25,7 @@ export default function TableList({ tables, selected, collapsed, onSelect }: Tab
         />
       ) : (
         <div style={{ paddingBottom: 8 }}>
-          {tables.map((t) => (
+          {tables.map(t => (
             <div
               key={t.name}
               className={`sider-item${selected === t.name ? ' selected' : ''}`}

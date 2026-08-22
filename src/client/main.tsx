@@ -10,11 +10,11 @@ createRoot(document.getElementById('root')!).render(
     <ConfigProvider
       tag={{
         styles: {
-          root: { marginInlineEnd: 8 },
-        },
+          root: { marginInlineEnd: 8 }
+        }
       }}
     >
       <App />
     </ConfigProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 )

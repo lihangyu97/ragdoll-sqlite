@@ -28,19 +28,19 @@ ragdoll-sqlite ./data/app.db
 
 ## 2. 技术选型（含理由）
 
-| 维度 | 选择 | 理由 |
-|---|---|---|
-| 语言 | TypeScript（strict） | 跨端共享类型，DB 行 / API / UI 三方同源 |
-| 运行时 | Node.js ≥ 20（实测 24.18 OK） | better-sqlite3 的预编译二进制覆盖主流 LTS |
-| 包管理 | pnpm | 快、省磁盘；`packageManager` 字段声明，提交 `pnpm-lock.yaml` |
-| SQLite 访问 | `better-sqlite3` | 同步 API 简单直接、生态成熟；`readonly` + `fileMustExist` 选项开箱即用 |
-| Web 服务 | `node:http` + 极简手写路由 | 仅静态托管 + 3 个 API 端点，不引第三方运行时框架 |
-| 前端 | React 18 + antd v5 + Vite | **前后端分离 SPA**（不做 SSR）：Vite 构建客户端，`fetch` 拉 `/api`；antd 提供现成 Table / Tabs / Descriptions |
-| 前端构建 | Vite + `@vitejs/plugin-react` | 开发期 HMR 热更新；生产 `vite build` 产出静态资源 |
-| 服务端/CLI 编译 | `tsc`（CJS） | CLI 与 server 无需打包（本地运行时 node_modules 就位），避免额外构建工具 |
-| 测试 | Node 内置 `node:test` | Node ≥ 20 可直接跑 `.ts`（type stripping），零依赖 |
-| 打开浏览器 | `child_process` 平台分支（`open` / `xdg-open` / `cmd /c start`） | 三行代码，不引入 npm 依赖 |
-| 分发 | `package.json` 的 `bin` 字段 → `dist/cli.js`（shebang） | `pnpm i -g` 后即可全局使用 |
+| 维度            | 选择                                                             | 理由                                                                                                          |
+| --------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 语言            | TypeScript（strict）                                             | 跨端共享类型，DB 行 / API / UI 三方同源                                                                       |
+| 运行时          | Node.js ≥ 20（实测 24.18 OK）                                    | better-sqlite3 的预编译二进制覆盖主流 LTS                                                                     |
+| 包管理          | pnpm                                                             | 快、省磁盘；`packageManager` 字段声明，提交 `pnpm-lock.yaml`                                                  |
+| SQLite 访问     | `better-sqlite3`                                                 | 同步 API 简单直接、生态成熟；`readonly` + `fileMustExist` 选项开箱即用                                        |
+| Web 服务        | `node:http` + 极简手写路由                                       | 仅静态托管 + 3 个 API 端点，不引第三方运行时框架                                                              |
+| 前端            | React 18 + antd v5 + Vite                                        | **前后端分离 SPA**（不做 SSR）：Vite 构建客户端，`fetch` 拉 `/api`；antd 提供现成 Table / Tabs / Descriptions |
+| 前端构建        | Vite + `@vitejs/plugin-react`                                    | 开发期 HMR 热更新；生产 `vite build` 产出静态资源                                                             |
+| 服务端/CLI 编译 | `tsc`（CJS）                                                     | CLI 与 server 无需打包（本地运行时 node_modules 就位），避免额外构建工具                                      |
+| 测试            | Node 内置 `node:test`                                            | Node ≥ 20 可直接跑 `.ts`（type stripping），零依赖                                                            |
+| 打开浏览器      | `child_process` 平台分支（`open` / `xdg-open` / `cmd /c start`） | 三行代码，不引入 npm 依赖                                                                                     |
+| 分发            | `package.json` 的 `bin` 字段 → `dist/cli.js`（shebang）          | `pnpm i -g` 后即可全局使用                                                                                    |
 
 **为什么前后端分离（不做 SSR）**：按需求简化——本地回环毫秒级延迟，首屏"加载中"可忽略；免去 SSR 的样式抽取（`@ant-design/cssinjs`）与水合复杂度；前端可独立开发、独立热更新。架构更薄，出错面更小。
 
@@ -84,11 +84,11 @@ ragdoll-sqlite <db-path>
 
 ## 5. API 设计（全部返回 JSON）
 
-| 端点 | 说明 | 返回 |
-|---|---|---|
-| `GET /api/tables` | 表/视图清单 | `[{ name, type: 'table'\|'view' }]` |
-| `GET /api/tables/:name` | 表结构 | `{ columns: [{ name, type, notNull, pk, defaultValue }], foreignKeys, indexes, rowCount }` |
-| `GET /api/tables/:name/rows?page=1&pageSize=50` | 分页数据 | `{ total, page, pageSize, rows: Array<Record<string, any>> }` |
+| 端点                                            | 说明        | 返回                                                                                       |
+| ----------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------ |
+| `GET /api/tables`                               | 表/视图清单 | `[{ name, type: 'table'\|'view' }]`                                                        |
+| `GET /api/tables/:name`                         | 表结构      | `{ columns: [{ name, type, notNull, pk, defaultValue }], foreignKeys, indexes, rowCount }` |
+| `GET /api/tables/:name/rows?page=1&pageSize=50` | 分页数据    | `{ total, page, pageSize, rows: Array<Record<string, any>> }`                              |
 
 错误统一 `{ error: string }`，区分 400 / 404 / 500。
 
@@ -118,22 +118,22 @@ ragdoll-sqlite <db-path>
 
 **运行时依赖（dependencies）——共 5 个**
 
-| 包 | 用途 |
-|---|---|
-| `react` / `react-dom` | 前端 SPA（React 18，antd v5 原生支持，无需补丁） |
-| `antd` | UI 组件库（Layout / Table / Tabs / Descriptions / Tree） |
-| `@ant-design/icons` | 表/视图类型图标、UI 图标 |
-| `better-sqlite3` | SQLite 访问（原生模块，预编译二进制） |
+| 包                    | 用途                                                     |
+| --------------------- | -------------------------------------------------------- |
+| `react` / `react-dom` | 前端 SPA（React 18，antd v5 原生支持，无需补丁）         |
+| `antd`                | UI 组件库（Layout / Table / Tabs / Descriptions / Tree） |
+| `@ant-design/icons`   | 表/视图类型图标、UI 图标                                 |
+| `better-sqlite3`      | SQLite 访问（原生模块，预编译二进制）                    |
 
 **开发依赖（devDependencies）——共 6 个**
 
-| 包 | 用途 |
-|---|---|
-| `typescript` | 类型检查（strict）+ 编译 CLI/server（CJS） |
-| `vite` | 前端 SPA 构建 + 开发 HMR |
-| `@vitejs/plugin-react` | React 快速刷新 |
-| `@types/node` | Node 内置 API 类型 |
-| `@types/react` / `@types/react-dom` | React 类型 |
+| 包                                  | 用途                                       |
+| ----------------------------------- | ------------------------------------------ |
+| `typescript`                        | 类型检查（strict）+ 编译 CLI/server（CJS） |
+| `vite`                              | 前端 SPA 构建 + 开发 HMR                   |
+| `@vitejs/plugin-react`              | React 快速刷新                             |
+| `@types/node`                       | Node 内置 API 类型                         |
+| `@types/react` / `@types/react-dom` | React 类型                                 |
 
 **明确不引入**：Web 框架（用内置 `node:http`）、SSR 样式库（`@ant-design/cssinjs`——无 SSR 不再需要）、浏览器打开库（用 `child_process` 平台分支）、测试框架（用 Node 内置 `node:test`）、React 19 补丁（用 React 18）。
 
@@ -166,25 +166,25 @@ ragdoll-sqlite/
 
 ## 9. 开发里程碑
 
-| 里程碑 | 内容 | 验收 |
-|---|---|---|
-| M1 脚手架 | pnpm init、双 tsconfig、vite.config、package.json（bin/scripts）；`pnpm build` 产出 `dist/cli.js` 与 `dist/web/*` | 构建命令可跑通 |
-| M2 数据层 | db.ts：只读打开 + 探活 + 表清单 + 结构 + 分页 + 序列化（含 `node:test` 单测，用临时 sqlite 文件） | 对测试库能取回正确元数据与分页行 |
-| M3 服务层 | http.ts + api.ts：静态托管 + 三端点 + token 校验 | curl 各端点返回正确 JSON，无 token 返回 403 |
-| M4 前端 | Vite + antd SPA：表清单 Sider + 数据/结构 Tabs + 分页 Table；dev 模式 HMR | 浏览器打开即见表清单，分页/切表流畅 |
-| M5 收尾 | 自动开浏览器（跨平台）、Ctrl+C 优雅退出、错误提示、README | `node dist/cli.js 某.db` 一键体验完整流程 |
+| 里程碑    | 内容                                                                                                              | 验收                                        |
+| --------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| M1 脚手架 | pnpm init、双 tsconfig、vite.config、package.json（bin/scripts）；`pnpm build` 产出 `dist/cli.js` 与 `dist/web/*` | 构建命令可跑通                              |
+| M2 数据层 | db.ts：只读打开 + 探活 + 表清单 + 结构 + 分页 + 序列化（含 `node:test` 单测，用临时 sqlite 文件）                 | 对测试库能取回正确元数据与分页行            |
+| M3 服务层 | http.ts + api.ts：静态托管 + 三端点 + token 校验                                                                  | curl 各端点返回正确 JSON，无 token 返回 403 |
+| M4 前端   | Vite + antd SPA：表清单 Sider + 数据/结构 Tabs + 分页 Table；dev 模式 HMR                                         | 浏览器打开即见表清单，分页/切表流畅         |
+| M5 收尾   | 自动开浏览器（跨平台）、Ctrl+C 优雅退出、错误提示、README                                                         | `node dist/cli.js 某.db` 一键体验完整流程   |
 
 ---
 
 ## 10. 风险与对策
 
-| 风险 | 对策 |
-|---|---|
-| 大表 `count(*)` 慢 | 行数惰性加载；分页查询本身带 LIMIT |
-| BLOB / 大整数等值 JSON 不安全 | 统一序列化层（见 §4） |
-| 非 SQLite / 损坏文件打开不报错 | 启动探活 + 友好报错（该坑对 better-sqlite3 同样成立） |
+| 风险                                                        | 对策                                                                                                                   |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 大表 `count(*)` 慢                                          | 行数惰性加载；分页查询本身带 LIMIT                                                                                     |
+| BLOB / 大整数等值 JSON 不安全                               | 统一序列化层（见 §4）                                                                                                  |
+| 非 SQLite / 损坏文件打开不报错                              | 启动探活 + 友好报错（该坑对 better-sqlite3 同样成立）                                                                  |
 | better-sqlite3 原生模块：目标平台无预编译二进制时需本机编译 | 发布前在主流平台（macOS/Linux/Windows + 当前 LTS Node）验证预编译产物；db.ts 单文件隔离，必要时可换 `node:sqlite` 降级 |
-| 打开浏览器命令平台差异 | 平台分支封装在 `openBrowser()` |
+| 打开浏览器命令平台差异                                      | 平台分支封装在 `openBrowser()`                                                                                         |
 
 ---
 

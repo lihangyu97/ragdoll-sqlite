@@ -151,7 +151,7 @@ async function main(): Promise<void> {
   process.on('SIGTERM', shutdown)
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error(err)
   process.exit(1)
 })

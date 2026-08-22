@@ -18,7 +18,7 @@ export default function DataTable({ info, rows, loading, onPageChange }: DataTab
       title: '#',
       key: '__row',
       width: 60,
-      render: (_v, record) => <span className="cell-number">{String(record.__row)}</span>,
+      render: (_v, record) => <span className="cell-number">{String(record.__row)}</span>
     },
     ...info.columns.map((c: ColumnInfo) => ({
       title: (
@@ -31,8 +31,8 @@ export default function DataTable({ info, rows, loading, onPageChange }: DataTab
       dataIndex: c.name,
       key: c.name,
       ellipsis: true,
-      render: (v: unknown) => <CellValue value={v} />,
-    })),
+      render: (v: unknown) => <CellValue value={v} />
+    }))
   ]
 
   return (
@@ -49,8 +49,8 @@ export default function DataTable({ info, rows, loading, onPageChange }: DataTab
         total: rows.total,
         showSizeChanger: true,
         pageSizeOptions: PAGE_SIZE_OPTIONS,
-        showTotal: (total) => `共 ${total.toLocaleString()} 行`,
-        onChange: onPageChange,
+        showTotal: total => `共 ${total.toLocaleString()} 行`,
+        onChange: onPageChange
       }}
     />
   )

@@ -4,7 +4,7 @@ const REQUEST_TIMEOUT_MS = 30_000
 
 export async function apiFetch<T>(
   pathname: string,
-  params: Record<string, string | number> = {},
+  params: Record<string, string | number> = {}
 ): Promise<T> {
   const url = new URL(pathname, window.location.origin)
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v))

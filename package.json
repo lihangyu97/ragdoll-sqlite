@@ -21,7 +21,9 @@
     "test": "tsc -p tsconfig.test.json && node --test \"dist-test/**/*.test.js\"",
     "start": "node dist/cli.js",
     "dev:web": "vite dev",
-    "dev:server": "tsc -p tsconfig.server.json && node dist/cli.js --dev"
+    "dev:server": "tsc -p tsconfig.server.json && node dist/cli.js --dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
@@ -36,6 +38,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "prettier": "^3.9.6",
     "typescript": "^7.0.2",
     "vite": "^8.2.2"
   }

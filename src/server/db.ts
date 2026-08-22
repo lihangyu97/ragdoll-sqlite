@@ -5,7 +5,7 @@ import type {
   IndexInfo,
   RowsResult,
   TableEntry,
-  TableInfo,
+  TableInfo
 } from '../shared/types.js'
 
 export const MAX_PAGE_SIZE = 500
@@ -23,7 +23,7 @@ export function serializeValue(value: unknown): unknown {
     return {
       __blob: true,
       bytes: value.byteLength,
-      hex: value.subarray(0, 16).toString('hex'),
+      hex: value.subarray(0, 16).toString('hex')
     }
   }
   if (typeof value === 'bigint') return value.toString()
@@ -65,7 +65,7 @@ export class SqliteDb {
       .prepare(
         `SELECT name, type FROM sqlite_master
          WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%'
-         ORDER BY name`,
+         ORDER BY name`
       )
       .all() as TableEntry[]
   }
@@ -83,13 +83,11 @@ export class SqliteDb {
   /** 单表完整结构 */
   tableInfo(name: string): TableInfo {
     this.requireTable(name)
-    const typeRow = this.db
-      .prepare(`SELECT type FROM sqlite_master WHERE name = ?`)
-      .get(name) as { type: 'table' | 'view' }
+    const typeRow = this.db.prepare(`SELECT type FROM sqlite_master WHERE name = ?`).get(name) as {
+      type: 'table' | 'view'
+    }
 
-    const rawColumns = this.db
-      .prepare(`SELECT * FROM pragma_table_info(?)`)
-      .all(name) as Array<{
+    const rawColumns = this.db.prepare(`SELECT * FROM pragma_table_info(?)`).all(name) as Array<{
       cid: number
       name: string
       type: string
@@ -98,9 +96,7 @@ export class SqliteDb {
       pk: number
     }>
 
-    const rawFks = this.db
-      .prepare(`SELECT * FROM pragma_foreign_key_list(?)`)
-      .all(name) as Array<{
+    const rawFks = this.db.prepare(`SELECT * FROM pragma_foreign_key_list(?)`).all(name) as Array<{
       id: number
       seq: number
       table: string
@@ -111,20 +107,23 @@ export class SqliteDb {
       match: string
     }>
 
-    const rawIndexes = this.db
-      .prepare(`SELECT * FROM pragma_index_list(?)`)
-      .all(name) as Array<{ name: string; unique: number; origin: string; partial: number }>
+    const rawIndexes = this.db.prepare(`SELECT * FROM pragma_index_list(?)`).all(name) as Array<{
+      name: string
+      unique: number
+      origin: string
+      partial: number
+    }>
 
-    const columns: ColumnInfo[] = rawColumns.map((c) => ({
+    const columns: ColumnInfo[] = rawColumns.map(c => ({
       cid: c.cid,
       name: c.name,
       type: c.type,
       notNull: !!c.notnull,
       defaultValue: c.dflt_value,
-      pk: c.pk,
+      pk: c.pk
     }))
 
-    const foreignKeys: ForeignKeyInfo[] = rawFks.map((fk) => ({
+    const foreignKeys: ForeignKeyInfo[] = rawFks.map(fk => ({
       id: fk.id,
       seq: fk.seq,
       table: fk.table,
@@ -132,19 +131,19 @@ export class SqliteDb {
       to: fk.to,
       onUpdate: fk.on_update,
       onDelete: fk.on_delete,
-      match: fk.match,
+      match: fk.match
     }))
 
-    const indexes: IndexInfo[] = rawIndexes.map((r) => {
-      const rawCols = this.db
-        .prepare(`SELECT * FROM pragma_index_info(?)`)
-        .all(r.name) as Array<{ name: string | null }>
+    const indexes: IndexInfo[] = rawIndexes.map(r => {
+      const rawCols = this.db.prepare(`SELECT * FROM pragma_index_info(?)`).all(r.name) as Array<{
+        name: string | null
+      }>
       return {
         name: r.name,
         unique: !!r.unique,
         origin: r.origin,
         partial: !!r.partial,
-        columns: rawCols.map((c) => c.name).filter((c): c is string => c !== null),
+        columns: rawCols.map(c => c.name).filter((c): c is string => c !== null)
       }
     })
 
@@ -161,7 +160,7 @@ export class SqliteDb {
     const safePage = Math.max(1, Math.floor(page) || 1)
     const safePageSize = Math.min(
       MAX_PAGE_SIZE,
-      Math.max(1, Math.floor(pageSize) || DEFAULT_PAGE_SIZE),
+      Math.max(1, Math.floor(pageSize) || DEFAULT_PAGE_SIZE)
     )
     const total = (
       this.db.prepare(`SELECT count(*) AS c FROM ${quoteIdent(name)}`).get() as { c: number }
@@ -180,7 +179,7 @@ export class SqliteDb {
         for (const [k, v] of Object.entries(r)) out[k] = serializeValue(v)
         out.__row = offset + i + 1
         return out
-      }),
+      })
     }
   }
 
