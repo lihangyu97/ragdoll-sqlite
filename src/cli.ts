@@ -12,16 +12,20 @@ interface CliOptions {
   dbPath: string
   dev: boolean
   port: number | null
+  open: boolean
 }
 
-function parseArgs(argv: string[]): CliOptions | { error: string } {
+function parseArgs(argv: string[], envDb?: string): CliOptions | { error: string } {
   const positional: string[] = []
   let dev = false
+  let open = false
   let port: number | null = null
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--dev') {
       dev = true
+    } else if (arg === '--open' || arg === '-o') {
+      open = true
     } else if (arg === '--port' || arg === '-p') {
       const raw = argv[++i]
       const n = Number(raw)
@@ -37,9 +41,11 @@ function parseArgs(argv: string[]): CliOptions | { error: string } {
       positional.push(arg)
     }
   }
+  // 未传位置参数时，回退到 RAGDOLL_DB 环境变量（便于 dev 脚本指定数据库）
+  if (positional.length === 0 && envDb) positional.push(envDb)
   if (positional.length === 0) return { error: '缺少 SQLite 数据库路径参数' }
   if (positional.length > 1) return { error: `参数过多: ${positional.slice(1).join(' ')}` }
-  return { dbPath: positional[0], dev, port }
+  return { dbPath: positional[0], dev, port, open }
 }
 
 function printUsage(): void {
@@ -49,11 +55,15 @@ ragdoll-sqlite - 在浏览器中只读浏览 SQLite 数据库
 用法:
   ragdoll-sqlite <sqlite 路径> [选项]
 
+数据库路径也可通过环境变量 RAGDOLL_DB 指定（未传位置参数时生效）:
+  RAGDOLL_DB=./data/app.db ragdoll-sqlite [选项]
+
 选项:
-  -p, --port N   指定端口（默认随机）
-  --dev          开发模式：跳过 token 校验、固定端口 ${DEV_DEFAULT_PORT}，
-                 页面由 vite dev server (5173) 提供，需先运行 pnpm dev:web
-  -h, --help     显示帮助
+  -o, --open      启动后自动打开浏览器（默认只打印地址）
+  -p, --port N    指定端口（默认随机）
+  --dev           开发模式：跳过 token 校验、固定端口 ${DEV_DEFAULT_PORT}，
+                  页面由 vite dev server (5173) 提供，需先运行 pnpm dev:web
+  -h, --help      显示帮助
 `)
 }
 
@@ -69,7 +79,7 @@ function openBrowser(url: string): void {
 }
 
 async function main(): Promise<void> {
-  const parsed = parseArgs(process.argv.slice(2))
+  const parsed = parseArgs(process.argv.slice(2), process.env.RAGDOLL_DB)
   if ('error' in parsed) {
     if (parsed.error === '__HELP__') {
       printUsage()
@@ -80,7 +90,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  const { dbPath, dev, port } = parsed
+  const { dbPath, dev, port, open } = parsed
 
   if (!existsSync(dbPath)) {
     console.error(`错误: 文件不存在: ${dbPath}`)
@@ -114,14 +124,18 @@ async function main(): Promise<void> {
 
   if (dev) {
     const pageUrl = `http://127.0.0.1:5173/?t=dev`
-    console.log(`\n[dev] API 服务: http://127.0.0.1:${server.port}/`)
-    console.log(`[dev] 前端页面: ${pageUrl}（请先运行 pnpm dev:web）`)
-    openBrowser(pageUrl)
+    console.log(`\nragdoll-sqlite（开发模式）已启动`)
+    console.log(`  数据库: ${dbPath}`)
+    console.log(`  API 服务: http://127.0.0.1:${server.port}/`)
+    console.log(`  前端页面: ${pageUrl}（请先运行 pnpm dev:web）`)
+    if (open) openBrowser(pageUrl)
   } else {
-    console.log(`\n正在打开: ${server.url}`)
-    console.log(`（按 Ctrl+C 退出）`)
-    openBrowser(server.url)
+    console.log(`\nragdoll-sqlite 已启动`)
+    console.log(`  数据库: ${dbPath}`)
+    console.log(`  访问地址: ${server.url}`)
+    if (open) openBrowser(server.url)
   }
+  console.log(`按 Ctrl+C 退出`)
 
   let shuttingDown = false
   const shutdown = () => {

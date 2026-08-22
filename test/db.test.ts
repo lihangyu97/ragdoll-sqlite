@@ -108,7 +108,7 @@ describe('SqliteDb', () => {
     }
   })
 
-  it('分页：总数与页码正确，BLOB 被序列化', () => {
+  it('分页：总数与页码正确，BLOB 被序列化，__row 为全表唯一行号', () => {
     const db = SqliteDb.open(dbPath)
     try {
       const page2 = db.rows('users', 2, 10)
@@ -117,6 +117,11 @@ describe('SqliteDb', () => {
       assert.equal(page2.pageSize, 10)
       assert.equal(page2.rows.length, 10)
       assert.equal(page2.rows[0].id, 11)
+      // __row 连续且跨页不重复
+      assert.deepEqual(
+        page2.rows.map((r) => r.__row),
+        [11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+      )
 
       const blobRow = page2.rows.find((r) => r.avatar !== null) as {
         avatar: { __blob: true; bytes: number; hex: string }
@@ -128,6 +133,7 @@ describe('SqliteDb', () => {
       const last = db.rows('users', 4, 10)
       assert.equal(last.rows.length, 5)
       assert.equal(last.rows[4].id, 35)
+      assert.equal(last.rows[4].__row, 35)
     } finally {
       db.close()
     }

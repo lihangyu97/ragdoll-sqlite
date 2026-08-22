@@ -13,26 +13,37 @@ import {
   Typography,
   type TableColumnsType,
 } from 'antd'
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BlobValue, ColumnInfo, ForeignKeyInfo, RowsResult, TableEntry, TableInfo } from '../shared/types.js'
 
 const { Sider, Content } = Layout
 
-const PAGE_SIZE_OPTIONS = [50, 100, 200, 500]
+const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500]
+const REQUEST_TIMEOUT_MS = 30_000
 
-/** 带 token 的 API 请求封装 */
+/** 带 token 的 API 请求封装（含超时，避免请求挂起时 UI 一直卡在 loading） */
 function apiFetch<T>(pathname: string, params: Record<string, string | number> = {}): Promise<T> {
   const url = new URL(pathname, window.location.origin)
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v))
   const token = new URLSearchParams(window.location.search).get('t')
   if (token) url.searchParams.set('t', token)
-  return fetch(url.toString()).then(async (res) => {
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { error?: string } | null
-      throw new Error(body?.error ?? `请求失败 (${res.status})`)
-    }
-    return res.json() as Promise<T>
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  return fetch(url.toString(), { signal: controller.signal })
+    .then(async (res) => {
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null
+        throw new Error(body?.error ?? `请求失败 (${res.status})`)
+      }
+      return res.json() as Promise<T>
+    })
+    .catch((err: unknown) => {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new Error('请求超时，请刷新重试')
+      }
+      throw err
+    })
+    .finally(() => clearTimeout(timer))
 }
 
 function renderCell(value: unknown, col: ColumnInfo): ReactNode {
@@ -59,10 +70,14 @@ export default function App() {
   const [info, setInfo] = useState<TableInfo | null>(null)
   const [rows, setRows] = useState<RowsResult | null>(null)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(20)
   const [loadingInfo, setLoadingInfo] = useState(false)
   const [loadingRows, setLoadingRows] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
+  const [collapsed, setCollapsed] = useState(false)
+  // 请求序号守卫：切换表/翻页后，丢弃过期请求的响应，避免旧数据覆盖新状态（卡 loading/闪错数据）
+  const infoSeq = useRef(0)
+  const rowsSeq = useRef(0)
 
   useEffect(() => {
     apiFetch<TableEntry[]>('/api/tables')
@@ -83,20 +98,40 @@ export default function App() {
 
   useEffect(() => {
     if (!selected) return
+    const seq = ++infoSeq.current
     setLoadingInfo(true)
     apiFetch<TableInfo>(`/api/tables/${encodeURIComponent(selected)}`)
-      .then(setInfo)
-      .catch((err) => setDataError((err as Error).message))
-      .finally(() => setLoadingInfo(false))
+      .then((data) => {
+        if (seq !== infoSeq.current) return // 过期响应，丢弃
+        setDataError(null)
+        setInfo(data)
+      })
+      .catch((err) => {
+        if (seq !== infoSeq.current) return
+        setDataError((err as Error).message)
+      })
+      .finally(() => {
+        if (seq === infoSeq.current) setLoadingInfo(false)
+      })
   }, [selected])
 
   useEffect(() => {
     if (!selected) return
+    const seq = ++rowsSeq.current
     setLoadingRows(true)
     apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, { page, pageSize })
-      .then(setRows)
-      .catch((err) => setDataError((err as Error).message))
-      .finally(() => setLoadingRows(false))
+      .then((data) => {
+        if (seq !== rowsSeq.current) return
+        setDataError(null)
+        setRows(data)
+      })
+      .catch((err) => {
+        if (seq !== rowsSeq.current) return
+        setDataError((err as Error).message)
+      })
+      .finally(() => {
+        if (seq === rowsSeq.current) setLoadingRows(false)
+      })
   }, [selected, page, pageSize])
 
   if (tablesError) {
@@ -112,20 +147,21 @@ export default function App() {
 
   const renderDataTab = () => {
     if (!info) return null
-    if (loadingRows && !rows) {
-      return (
+    if (!rows) {
+      return loadingRows ? (
         <div className="loading-wrap">
           <Spin size="large" />
         </div>
+      ) : (
+        <Empty description="暂无数据" />
       )
     }
-    if (!rows) return null
     const columns: TableColumnsType<Record<string, unknown>> = [
       {
         title: '#',
         key: '__row',
         width: 60,
-        render: (_v, _r, index) => (rows.page - 1) * rows.pageSize + index + 1,
+        render: (_v, record) => <span className="cell-number">{String(record.__row)}</span>,
       },
       ...info.columns.map((c) => ({
         title: (
@@ -144,7 +180,7 @@ export default function App() {
         size="small"
         columns={columns}
         dataSource={rows.rows}
-        rowKey={(_r, i) => `${rows.page}-${i}`}
+        rowKey="__row"
         loading={loadingRows}
         scroll={{ x: 'max-content' }}
         pagination={{
@@ -269,10 +305,17 @@ export default function App() {
 
   return (
     <Layout className="app-layout">
-      <Sider width={260} theme="light" className="app-sider">
+      <Sider
+        width={260}
+        theme="light"
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        className="app-sider"
+      >
         <div className="sider-title">
           <DatabaseOutlined />
-          表与视图
+          {!collapsed && <span>表与视图</span>}
         </div>
         {tables.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="数据库中没有表或视图" style={{ marginTop: 24 }} />
@@ -285,10 +328,11 @@ export default function App() {
                 key={t.name}
                 className={`sider-item${selected === t.name ? ' selected' : ''}`}
                 onClick={() => selectTable(t.name)}
+                title={collapsed ? t.name : undefined}
               >
                 {t.type === 'view' ? <EyeOutlined /> : <TableOutlined />}
-                <span className="item-name">{t.name}</span>
-                {t.type === 'view' && (
+                {!collapsed && <span className="item-name">{t.name}</span>}
+                {!collapsed && t.type === 'view' && (
                   <Tag style={{ marginLeft: 'auto' }} color="cyan">
                     视图
                   </Tag>

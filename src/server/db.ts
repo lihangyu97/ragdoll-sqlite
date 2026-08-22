@@ -9,7 +9,7 @@ import type {
 } from '../shared/types.js'
 
 export const MAX_PAGE_SIZE = 500
-export const DEFAULT_PAGE_SIZE = 50
+export const DEFAULT_PAGE_SIZE = 20
 
 /** SQL 标识符双引号转义（表名在白名单校验后才插值，见 requireTable） */
 function quoteIdent(name: string): string {
@@ -174,9 +174,11 @@ export class SqliteDb {
       total,
       page: safePage,
       pageSize: safePageSize,
-      rows: rows.map((r) => {
+      // __row: 该页内 1 起的行号（全表唯一递增），供前端作为稳定的表格 rowKey 使用
+      rows: rows.map((r, i) => {
         const out: Record<string, unknown> = {}
         for (const [k, v] of Object.entries(r)) out[k] = serializeValue(v)
+        out.__row = offset + i + 1
         return out
       }),
     }
