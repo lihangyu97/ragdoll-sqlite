@@ -72,7 +72,10 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 │   │   ├── http.ts         # node:http 服务器 + token 校验 + 静态托管
 │   │   ├── db.ts           # better-sqlite3 只读封装（探活/元数据/分页/序列化）
 │   │   └── api.ts          # REST API 处理器
-│   ├── client/             # 前端 SPA（antd）
+│   ├── client/             # 前端 SPA（antd v6）
+│   │   ├── App.tsx          # 状态容器：数据获取 + 布局组装
+│   │   ├── api.ts           # API 请求封装（token + 超时）
+│   │   └── components/      # 展示组件：TableList / DataTable / StructureTable / CellValue
 │   └── shared/types.ts     # 前后端共享类型
 └── test/                   # 单元测试
 ```
