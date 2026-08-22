@@ -4,12 +4,13 @@
 
 ![截图](docs/screenshot.png)
 
-## 特性（v1）
+## 特性
 
 - 🔒 **只读**：以 `readonly` 模式打开数据库，页面无任何写入口
-- 📋 表 / 视图清单，含类型图标
+- 📋 侧边栏「表与视图」菜单：可折叠（默认展开）、表/视图图标区分，支持后续扩展更多菜单
 - 🧱 表结构：字段（类型 / 主键 / 非空 / 默认值）、外键、索引
 - 📄 分页浏览数据（默认 10 条/页，最大 50），NULL / BLOB / 中文 / emoji 安全展示
+- 🔍 单元格 hover 弹 Popover 看完整内容（BLOB 含 hex 预览）；点击行弹出全字段详情
 - 🛡️ 只监听 `127.0.0.1` + 随机端口 + 随机 token 校验，防止本机其他进程探测
 - 🖨️ 启动后只打印访问地址，需要自动打开浏览器时加 `--open`，Ctrl+C 优雅退出
 
@@ -68,26 +69,27 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 ```
 ├── package.json / pnpm-workspace.yaml
 ├── tsconfig.json / tsconfig.server.json / tsconfig.test.json
-├── vite.config.ts / index.html
+├── vite.config.ts / eslint.config.js / index.html
 ├── src/
 │   ├── cli.ts              # 入口：参数解析、启动服务、打开浏览器、优雅退出
 │   ├── server/
 │   │   ├── http.ts         # node:http 服务器 + token 校验 + 静态托管
-│   │   ├── db.ts           # better-sqlite3 只读封装（探活/元数据/分页/序列化）
+│   │   ├── db.ts           # better-sqlite3 只读封装（探活/元数据/分页/序列化/行数缓存）
 │   │   └── api.ts          # REST API 处理器
-│   ├── client/             # 前端 SPA（antd v6）
-│   │   ├── App.tsx          # 状态容器：数据获取 + 布局组装
+│   ├── client/             # 前端 SPA（React 19 + antd v6）
+│   │   ├── App.tsx          # 布局组装 + 表清单预取
+│   │   ├── useTableData.ts  # 选中表的数据获取 hook（详情/分页/序号守卫）
 │   │   ├── api.ts           # API 请求封装（token + 超时）
 │   │   └── components/      # 展示组件：TableList / DataTable / StructureTable / CellValue
-│   └── shared/types.ts     # 前后端共享类型
-└── test/                   # 单元测试
+│   └── shared/             # 前后端共享：types.ts + constants.ts
+└── test/                   # 单元 + 集成测试（db.test.ts / api.test.ts）
 ```
 
 ## API
 
 | 端点                                         | 说明                                            |
 | -------------------------------------------- | ----------------------------------------------- |
-| `GET /api/tables`                            | 表/视图清单（含全部表的字段，一次预取所有表头） |
+| `GET /api/tables`                            | 表/视图清单（表数 ≤50 时一次预取所有表头，更大库按需加载） |
 | `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数）                   |
 | `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据                                        |
 
@@ -95,7 +97,7 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 
 ## Roadmap
 
-- 行详情抽屉、列排序、条件过滤
+- 列排序、条件过滤
 - 只读 SQL 查询控制台
 - 导出 CSV / JSON
 - 深色模式、大表虚拟滚动
