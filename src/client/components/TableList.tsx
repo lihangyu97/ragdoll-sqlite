@@ -1,4 +1,4 @@
-import { EyeOutlined, TableOutlined } from '@ant-design/icons'
+import { DatabaseOutlined, EyeOutlined, TableOutlined } from '@ant-design/icons'
 import { Menu, Tag } from 'antd'
 import type { TableEntry } from '../../shared/types.js'
 
@@ -9,8 +9,8 @@ interface TableListProps {
 }
 
 /**
- * 侧边栏菜单：当前为「表与视图」分组（表/视图作为菜单项）。
- * 后续新增功能（如 SQL 编辑查询）时，在 items 中追加分组/菜单项即可。
+ * 侧边栏菜单：「表与视图」为可折叠子菜单（默认展开），表/视图作为子项。
+ * 后续新增功能（如 SQL 编辑查询）时，在 items 中追加子菜单/菜单项即可。
  */
 export default function TableList({ tables, selected, onSelect }: TableListProps) {
   if (tables.length === 0) {
@@ -21,10 +21,12 @@ export default function TableList({ tables, selected, onSelect }: TableListProps
       theme="dark"
       mode="inline"
       selectedKeys={selected ? [selected] : []}
+      defaultOpenKeys={['tables']}
       onClick={({ key }) => onSelect(String(key))}
       items={[
         {
-          type: 'group',
+          key: 'tables',
+          icon: <DatabaseOutlined />,
           label: '表与视图',
           children: tables.map((t) => ({
             key: t.name,
