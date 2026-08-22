@@ -1,48 +1,47 @@
-import { DatabaseOutlined, EyeOutlined, TableOutlined } from '@ant-design/icons'
-import { Empty, Tag } from 'antd'
+import { EyeOutlined, TableOutlined } from '@ant-design/icons'
+import { Menu, Tag } from 'antd'
 import type { TableEntry } from '../../shared/types.js'
 
 interface TableListProps {
   tables: TableEntry[]
   selected: string | null
-  collapsed: boolean
   onSelect: (name: string) => void
 }
 
-/** 左侧侧边栏：表/视图清单（antd v6 已弃用 List，直接渲染条目） */
-export default function TableList({ tables, selected, collapsed, onSelect }: TableListProps) {
+/**
+ * 侧边栏菜单：当前为「表与视图」分组（表/视图作为菜单项）。
+ * 后续新增功能（如 SQL 编辑查询）时，在 items 中追加分组/菜单项即可。
+ */
+export default function TableList({ tables, selected, onSelect }: TableListProps) {
+  if (tables.length === 0) {
+    return <div className="sider-empty">数据库中没有表或视图</div>
+  }
   return (
-    <>
-      <div className="sider-title">
-        <DatabaseOutlined />
-        {!collapsed && <span>表与视图</span>}
-      </div>
-      {tables.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="数据库中没有表或视图"
-          style={{ marginTop: 24 }}
-        />
-      ) : (
-        <div style={{ paddingBottom: 8 }}>
-          {tables.map(t => (
-            <div
-              key={t.name}
-              className={`sider-item${selected === t.name ? ' selected' : ''}`}
-              onClick={() => onSelect(t.name)}
-              title={collapsed ? t.name : undefined}
-            >
-              {t.type === 'view' ? <EyeOutlined /> : <TableOutlined />}
-              {!collapsed && <span className="item-name">{t.name}</span>}
-              {!collapsed && t.type === 'view' && (
-                <Tag style={{ marginLeft: 'auto' }} color="cyan">
-                  视图
-                </Tag>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </>
+    <Menu
+      theme="dark"
+      mode="inline"
+      selectedKeys={selected ? [selected] : []}
+      onClick={({ key }) => onSelect(String(key))}
+      items={[
+        {
+          type: 'group',
+          label: '表与视图',
+          children: tables.map((t) => ({
+            key: t.name,
+            icon: t.type === 'view' ? <EyeOutlined /> : <TableOutlined />,
+            label: (
+              <span className="menu-item-label">
+                <span className="menu-item-name">{t.name}</span>
+                {t.type === 'view' && (
+                  <Tag color="cyan" className="menu-item-tag">
+                    视图
+                  </Tag>
+                )}
+              </span>
+            ),
+          })),
+        },
+      ]}
+    />
   )
 }

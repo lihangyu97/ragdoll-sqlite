@@ -1,4 +1,4 @@
-import { EyeOutlined, TableOutlined } from '@ant-design/icons'
+import { EyeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, TableOutlined } from '@ant-design/icons'
 import { Alert, Empty, Layout, Result, Spin, Tabs, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RowsResult, TableInfo, TableSchemaEntry } from '../shared/types.js'
@@ -120,14 +120,27 @@ export default function App() {
   return (
     <Layout className="app-layout">
       <Sider
-        width={260}
-        theme="light"
+        width={240}
+        collapsedWidth={80}
+        theme="dark"
         collapsible
         collapsed={collapsed}
-        onCollapse={setCollapsed}
+        trigger={null}
         className="app-sider"
       >
-        <TableList tables={schemas} selected={selected} collapsed={collapsed} onSelect={selectTable} />
+        <div className="sider-logo">
+          <img src="/favicon.svg" alt="ragdoll-sqlite" className="sider-logo-icon" />
+          {!collapsed && <span className="sider-logo-title">ragdoll-sqlite</span>}
+        </div>
+        <TableList tables={schemas} selected={selected} onSelect={selectTable} />
+        <div
+          className="sider-trigger"
+          title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          {!collapsed && <span>收起</span>}
+        </div>
       </Sider>
 
       <Content className="app-content">
