@@ -3,7 +3,6 @@ import {
   Alert,
   Empty,
   Layout,
-  List,
   Result,
   Spin,
   Table,
@@ -320,10 +319,9 @@ export default function App() {
         {tables.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="数据库中没有表或视图" style={{ marginTop: 24 }} />
         ) : (
-          <List
-            size="small"
-            dataSource={tables}
-            renderItem={(t) => (
+          // 不用 antd List（v6 已弃用），直接渲染条目
+          <div style={{ paddingBottom: 8 }}>
+            {tables.map((t) => (
               <div
                 key={t.name}
                 className={`sider-item${selected === t.name ? ' selected' : ''}`}
@@ -338,8 +336,8 @@ export default function App() {
                   </Tag>
                 )}
               </div>
-            )}
-          />
+            ))}
+          </div>
         )}
       </Sider>
       <Content className="app-content">

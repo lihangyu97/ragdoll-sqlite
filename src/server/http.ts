@@ -78,12 +78,6 @@ async function handleRequest(
     return
   }
 
-  // ---- 静态资源（bundle 不含数据，无需 token）----
-  if (pathname.startsWith('/assets/')) {
-    await serveStatic(options.webDir, pathname, res)
-    return
-  }
-
   // ---- 页面 ----
   if (pathname === '/' || pathname === '/index.html') {
     if (!options.dev && url.searchParams.get('t') !== token) {
@@ -94,7 +88,8 @@ async function handleRequest(
     return
   }
 
-  sendJson(res, 404, { error: 'Not Found' })
+  // ---- 其他静态文件（bundle、favicon 等，不含数据，无需 token）----
+  await serveStatic(options.webDir, pathname, res)
 }
 
 async function handleApi(
