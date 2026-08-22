@@ -145,6 +145,21 @@ describe('HTTP API（真实服务器）', () => {
     assert.equal((await fetch(`${base()}/`)).status, 403)
   })
 
+  it('POST /api/refresh：清行数缓存；无 token 403、非 POST 405', async () => {
+    const ok = await fetch(`${base()}/api/refresh?t=${token}`, { method: 'POST' })
+    assert.equal(ok.status, 200)
+    assert.deepEqual(await ok.json(), { ok: true })
+
+    // 无 token
+    assert.equal((await fetch(`${base()}/api/refresh`, { method: 'POST' })).status, 403)
+    // GET 不允许
+    assert.equal((await fetch(`${base()}/api/refresh?t=${token}`)).status, 405)
+
+    // 刷新后数据仍可正常读取
+    const rows = await fetch(`${base()}/api/tables/users/rows?t=${token}`)
+    assert.equal(rows.status, 200)
+  })
+
   it('路径穿越被拦截（URL 归一化后 404）', async () => {
     const res = await fetch(`${base()}/assets/../package.json?t=${token}`)
     assert.equal(res.status, 404)

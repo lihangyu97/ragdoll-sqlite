@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import path from 'node:path'
-import { ApiError, handleRows, handleTableInfo, handleTables } from './api.js'
+import { ApiError, handleRefresh, handleRows, handleTableInfo, handleTables } from './api.js'
 import type { SqliteDb } from './db.js'
 
 const MIME: Record<string, string> = {
@@ -72,6 +72,16 @@ async function handleRequest(
   if (pathname.startsWith('/api/')) {
     if (!options.dev && url.searchParams.get('t') !== token) {
       sendJson(res, 403, { error: '无效的访问令牌' })
+      return
+    }
+    // 刷新：清空服务端行数缓存（外部可能改过库）
+    if (pathname === '/api/refresh') {
+      if (req.method !== 'POST') {
+        sendJson(res, 405, { error: 'Method Not Allowed' })
+        return
+      }
+      handleRefresh(options.db)
+      sendJson(res, 200, { ok: true })
       return
     }
     await handleApi(options.db, pathname, url, res)

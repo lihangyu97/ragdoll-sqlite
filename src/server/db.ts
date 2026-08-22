@@ -314,6 +314,11 @@ export class SqliteDb {
     ).c
   }
 
+  /** 清空行数缓存（外部可能改过库，刷新时调用） */
+  clearRowCountCache(): void {
+    this.rowCountCache.clear()
+  }
+
   close(): void {
     this.db.close()
   }

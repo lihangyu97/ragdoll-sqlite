@@ -23,6 +23,11 @@ export function handleTables(db: SqliteDb): TableSchemaEntry[] {
   return db.listSchemas()
 }
 
+/** 刷新：清空行数缓存（外部可能改过库），由客户端随后重新拉取数据 */
+export function handleRefresh(db: SqliteDb): void {
+  db.clearRowCountCache()
+}
+
 export function handleTableInfo(db: SqliteDb, name: string): TableInfo {
   if (!name) throw new ApiError(400, '缺少表名')
   try {

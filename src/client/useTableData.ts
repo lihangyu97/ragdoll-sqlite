@@ -17,6 +17,7 @@ export interface UseTableData {
   setFilters: (filters: FilterCondition[]) => void
   sort: SortSpec | null
   setSort: (sort: SortSpec | null) => void
+  refresh: () => void
 }
 
 /**
@@ -35,6 +36,8 @@ export function useTableData(): UseTableData {
   const [dataError, setDataError] = useState<string | null>(null)
   const [filters, setFiltersState] = useState<FilterCondition[]>([])
   const [sort, setSortState] = useState<SortSpec | null>(null)
+  /** 刷新计数：让 info/rows effect 无条件重跑（筛选本来就为空时也需要） */
+  const [refreshSeq, setRefreshSeq] = useState(0)
   const infoSeq = useRef(0)
   const rowsSeq = useRef(0)
   const selectedRef = useRef<string | null>(null)
@@ -65,7 +68,7 @@ export function useTableData(): UseTableData {
         if (seq !== infoSeq.current) return
         setDataError((err as Error).message)
       })
-  }, [selected])
+  }, [selected, refreshSeq])
 
   // 分页数据（带过滤条件）
   useEffect(() => {
@@ -96,7 +99,7 @@ export function useTableData(): UseTableData {
       .finally(() => {
         if (seq === rowsSeq.current) setLoadingRows(false)
       })
-  }, [selected, page, pageSize, filters, sort])
+  }, [selected, page, pageSize, filters, sort, refreshSeq])
 
   const clearError = useCallback(() => setDataError(null), [])
 
@@ -115,6 +118,20 @@ export function useTableData(): UseTableData {
     setPage(1) // 改排序后回到第 1 页
   }, [])
 
+  /**
+   * 刷新当前表：清除全部筛选、重新拉取数据与结构；排序保留。
+   * 先清空服务端行数缓存（外部可能改过库），再重跑 info/rows 请求。
+   */
+  const refresh = useCallback(() => {
+    setFiltersState([])
+    setDataError(null)
+    apiFetch<{ ok: boolean }>('/api/refresh', {}, { method: 'POST' })
+      .catch(() => {
+        // 旧版服务端没有该端点时忽略，数据仍会刷新（行数可能走缓存）
+      })
+      .finally(() => setRefreshSeq(s => s + 1))
+  }, [])
+
   return {
     selected,
     select,
@@ -129,6 +146,7 @@ export function useTableData(): UseTableData {
     filters,
     setFilters,
     sort,
-    setSort
+    setSort,
+    refresh
   }
 }

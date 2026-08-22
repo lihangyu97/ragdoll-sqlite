@@ -4,7 +4,8 @@ const REQUEST_TIMEOUT_MS = 30_000
 
 export async function apiFetch<T>(
   pathname: string,
-  params: Record<string, string | number> = {}
+  params: Record<string, string | number> = {},
+  init?: RequestInit
 ): Promise<T> {
   const url = new URL(pathname, window.location.origin)
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v))
@@ -14,7 +15,7 @@ export async function apiFetch<T>(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
-    const res = await fetch(url.toString(), { signal: controller.signal })
+    const res = await fetch(url.toString(), { signal: controller.signal, ...init })
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: string } | null
       throw new Error(body?.error ?? `请求失败 (${res.status})`)

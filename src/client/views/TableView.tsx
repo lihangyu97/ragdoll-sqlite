@@ -1,10 +1,11 @@
 import {
   EyeOutlined,
   FilterOutlined,
+  ReloadOutlined,
   SortAscendingOutlined,
   TableOutlined
 } from '@ant-design/icons'
-import { Alert, Button, Space, Spin, Tabs, Tag, Typography } from 'antd'
+import { Alert, Button, Space, Spin, Tabs, Tag, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
 import type {
   ColumnInfo,
@@ -34,9 +35,10 @@ interface TableViewProps {
   onFiltersChange: (filters: FilterCondition[]) => void
   sort: SortSpec | null
   onSortChange: (sort: SortSpec | null) => void
+  onRefresh: () => void
 }
 
-/** 表数据浏览视图：表头（名称/类型/行数/查询/排序）+ 数据/结构 Tabs（数据可按列过滤、排序） */
+/** 表数据浏览视图：表头（名称/类型/行数/刷新/查询/排序）+ 数据/结构 Tabs（数据可按列过滤、排序） */
 export default function TableView({
   schema,
   columns,
@@ -49,7 +51,8 @@ export default function TableView({
   filters,
   onFiltersChange,
   sort,
-  onSortChange
+  onSortChange,
+  onRefresh
 }: TableViewProps) {
   const [queryOpen, setQueryOpen] = useState(false)
   const [sortOpen, setSortOpen] = useState(false)
@@ -75,12 +78,15 @@ export default function TableView({
           {schema.name}
           <Tag color={isView ? 'cyan' : 'green'}>{isView ? '视图' : '表'}</Tag>
           <Typography.Text type="secondary">共 {rowCountText} 行</Typography.Text>
-          <Button
-            size="small"
-            icon={<FilterOutlined />}
-            style={{ marginLeft: 8 }}
-            onClick={() => setQueryOpen(true)}
-          >
+          <Tooltip title="刷新（清除筛选并重新加载，排序保留）">
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              style={{ marginLeft: 8 }}
+              onClick={onRefresh}
+            />
+          </Tooltip>
+          <Button size="small" icon={<FilterOutlined />} onClick={() => setQueryOpen(true)}>
             查询
           </Button>
           <Button size="small" icon={<SortAscendingOutlined />} onClick={() => setSortOpen(true)}>
