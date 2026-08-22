@@ -1,4 +1,4 @@
-import type { RowsResult, TableEntry, TableInfo } from '../shared/types.js'
+import type { RowsResult, TableInfo, TableSchemaEntry } from '../shared/types.js'
 import type { SqliteDb } from './db.js'
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from './db.js'
 
@@ -13,8 +13,8 @@ export class ApiError extends Error {
   }
 }
 
-export function handleTables(db: SqliteDb): TableEntry[] {
-  return db.listTables()
+export function handleTables(db: SqliteDb): TableSchemaEntry[] {
+  return db.listSchemas()
 }
 
 export function handleTableInfo(db: SqliteDb, name: string): TableInfo {

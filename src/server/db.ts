@@ -5,7 +5,8 @@ import type {
   IndexInfo,
   RowsResult,
   TableEntry,
-  TableInfo
+  TableInfo,
+  TableSchemaEntry
 } from '../shared/types.js'
 
 export const MAX_PAGE_SIZE = 500
@@ -70,6 +71,37 @@ export class SqliteDb {
       .all() as TableEntry[]
   }
 
+  /**
+   * 全部表/视图及其字段（一次请求拿到所有表头，切换表时无需等待详情接口）。
+   * 不含行数/外键/索引，避免对每个表执行 count(*) 拖慢启动。
+   */
+  listSchemas(): TableSchemaEntry[] {
+    return this.listTables().map((t) => ({
+      ...t,
+      columns: this.columnsOf(t.name),
+    }))
+  }
+
+  /** 单表字段（PRAGMA table_info 映射） */
+  private columnsOf(name: string): ColumnInfo[] {
+    const rawColumns = this.db.prepare(`SELECT * FROM pragma_table_info(?)`).all(name) as Array<{
+      cid: number
+      name: string
+      type: string
+      notnull: number
+      dflt_value: unknown
+      pk: number
+    }>
+    return rawColumns.map((c) => ({
+      cid: c.cid,
+      name: c.name,
+      type: c.type,
+      notNull: !!c.notnull,
+      defaultValue: c.dflt_value,
+      pk: c.pk,
+    }))
+  }
+
   /** 表名白名单校验：仅接受 sqlite_master 中真实存在的表/视图名 */
   private requireTable(name: string): void {
     const found = this.db
@@ -86,15 +118,6 @@ export class SqliteDb {
     const typeRow = this.db.prepare(`SELECT type FROM sqlite_master WHERE name = ?`).get(name) as {
       type: 'table' | 'view'
     }
-
-    const rawColumns = this.db.prepare(`SELECT * FROM pragma_table_info(?)`).all(name) as Array<{
-      cid: number
-      name: string
-      type: string
-      notnull: number
-      dflt_value: unknown
-      pk: number
-    }>
 
     const rawFks = this.db.prepare(`SELECT * FROM pragma_foreign_key_list(?)`).all(name) as Array<{
       id: number
@@ -114,14 +137,7 @@ export class SqliteDb {
       partial: number
     }>
 
-    const columns: ColumnInfo[] = rawColumns.map(c => ({
-      cid: c.cid,
-      name: c.name,
-      type: c.type,
-      notNull: !!c.notnull,
-      defaultValue: c.dflt_value,
-      pk: c.pk
-    }))
+    const columns = this.columnsOf(name)
 
     const foreignKeys: ForeignKeyInfo[] = rawFks.map(fk => ({
       id: fk.id,

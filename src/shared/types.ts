@@ -4,6 +4,11 @@ export interface TableEntry {
   type: 'table' | 'view'
 }
 
+/** 表/视图条目 + 字段（/api/tables 一次返回所有表头） */
+export interface TableSchemaEntry extends TableEntry {
+  columns: ColumnInfo[]
+}
+
 /** PRAGMA table_info 结果（映射后） */
 export interface ColumnInfo {
   cid: number

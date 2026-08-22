@@ -1,6 +1,6 @@
 import { Descriptions, Modal, Popover, Table, Tag, type TableColumnsType } from 'antd'
 import { useState } from 'react'
-import type { ColumnInfo, RowsResult, TableInfo } from '../../shared/types.js'
+import type { ColumnInfo, RowsResult } from '../../shared/types.js'
 import CellValue, { cellText } from './CellValue.js'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500]
@@ -30,27 +30,30 @@ function columnWidth(c: ColumnInfo): number {
 }
 
 interface DataTableProps {
-  info: TableInfo
-  rows: RowsResult
+  tableName: string
+  /** 列定义来自预取的 schema，切换表时立即可用 */
+  columns: ColumnInfo[]
+  /** 行数据可能尚未加载（null 时表格仅显示表头 + 内部 loading） */
+  rows: RowsResult | null
   loading: boolean
   onPageChange: (page: number, pageSize: number) => void
 }
 
 /** 「数据」Tab：分页表格（服务端分页，__row 为稳定行号）；点击行弹出该行详情 */
-export default function DataTable({ info, rows, loading, onPageChange }: DataTableProps) {
+export default function DataTable({ tableName, columns, rows, loading, onPageChange }: DataTableProps) {
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null)
 
   // 表格总宽 = 行号列 + 各列宽（数值 scroll.x 使列宽严格按 colgroup 生效）
-  const totalWidth = 60 + info.columns.reduce((sum, c) => sum + columnWidth(c), 0)
+  const totalWidth = 60 + columns.reduce((sum, c) => sum + columnWidth(c), 0)
 
-  const columns: TableColumnsType<Record<string, unknown>> = [
+  const tableColumns: TableColumnsType<Record<string, unknown>> = [
     {
       title: '#',
       key: '__row',
       width: 60,
       render: (_v, record) => <span className="cell-number">{String(record.__row)}</span>,
     },
-    ...info.columns.map((c: ColumnInfo) => ({
+    ...columns.map((c: ColumnInfo) => ({
       title: (
         <Popover
           trigger="hover"
@@ -93,23 +96,27 @@ export default function DataTable({ info, rows, loading, onPageChange }: DataTab
       <Table<Record<string, unknown>>
         className="data-table"
         size="small"
-        columns={columns}
-        dataSource={rows.rows}
+        columns={tableColumns}
+        dataSource={rows?.rows ?? []}
         rowKey="__row"
         loading={loading}
         scroll={{ x: totalWidth }}
         onRow={(record) => ({
           onClick: () => setDetail(record),
         })}
-        pagination={{
-          current: rows.page,
-          pageSize: rows.pageSize,
-          total: rows.total,
-          showSizeChanger: true,
-          pageSizeOptions: PAGE_SIZE_OPTIONS,
-          showTotal: (total) => `共 ${total.toLocaleString()} 行`,
-          onChange: onPageChange,
-        }}
+        pagination={
+          rows
+            ? {
+                current: rows.page,
+                pageSize: rows.pageSize,
+                total: rows.total,
+                showSizeChanger: true,
+                pageSizeOptions: PAGE_SIZE_OPTIONS,
+                showTotal: (total) => `共 ${total.toLocaleString()} 行`,
+                onChange: onPageChange,
+              }
+            : false
+        }
       />
 
       <Modal
@@ -117,14 +124,14 @@ export default function DataTable({ info, rows, loading, onPageChange }: DataTab
         onCancel={() => setDetail(null)}
         footer={null}
         width={680}
-        title={`${info.name} · 第 ${String(detail?.__row ?? '')} 行`}
+        title={`${tableName} · 第 ${String(detail?.__row ?? '')} 行`}
       >
         {detail && (
           <Descriptions
             bordered
             size="small"
             column={1}
-            items={info.columns.map((c) => ({
+            items={columns.map((c) => ({
               key: c.name,
               label: (
                 <span>

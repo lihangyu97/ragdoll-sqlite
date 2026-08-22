@@ -1,7 +1,7 @@
 import { EyeOutlined, TableOutlined } from '@ant-design/icons'
 import { Alert, Empty, Layout, Result, Spin, Tabs, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RowsResult, TableEntry, TableInfo } from '../shared/types.js'
+import type { RowsResult, TableInfo, TableSchemaEntry } from '../shared/types.js'
 import { apiFetch } from './api.js'
 import DataTable from './components/DataTable.js'
 import StructureTable from './components/StructureTable.js'
@@ -10,11 +10,14 @@ import TableList from './components/TableList.js'
 const { Sider, Content } = Layout
 
 /**
- * 应用容器：负责状态与数据获取（表清单 / 表结构 / 分页数据），
+ * 应用容器：负责状态与数据获取（表清单+全部表头预取 / 行数据 / 结构详情），
  * 布局组装（侧边栏 + 内容区），具体的 UI 渲染委托给 components/ 下的子组件。
+ *
+ * 加载策略：进入页面即预取全部表的字段（/api/tables），因此切换表时
+ * 表头立即可用，行数据在表格内部 loading，不再整页替换。
  */
 export default function App() {
-  const [tables, setTables] = useState<TableEntry[] | null>(null)
+  const [schemas, setSchemas] = useState<TableSchemaEntry[] | null>(null)
   const [tablesError, setTablesError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [info, setInfo] = useState<TableInfo | null>(null)
@@ -28,14 +31,14 @@ export default function App() {
   const infoSeq = useRef(0)
   const rowsSeq = useRef(0)
 
-  // 初始加载表/视图清单，并自动选中第一个
+  // 初始加载：表/视图清单 + 全部表字段（一次请求），并自动选中第一个
   useEffect(() => {
-    apiFetch<TableEntry[]>('/api/tables')
-      .then(list => {
-        setTables(list)
+    apiFetch<TableSchemaEntry[]>('/api/tables')
+      .then((list) => {
+        setSchemas(list)
         if (list.length > 0) setSelected(list[0].name)
       })
-      .catch(err => setTablesError((err as Error).message))
+      .catch((err) => setTablesError((err as Error).message))
   }, [])
 
   const selectTable = useCallback((name: string) => {
@@ -46,17 +49,17 @@ export default function App() {
     setDataError(null)
   }, [])
 
-  // 加载选中表的结构
+  // 加载选中表的结构详情（外键/索引；字段已由 schema 预取，无需等待）
   useEffect(() => {
     if (!selected) return
     const seq = ++infoSeq.current
     apiFetch<TableInfo>(`/api/tables/${encodeURIComponent(selected)}`)
-      .then(data => {
+      .then((data) => {
         if (seq !== infoSeq.current) return // 过期响应，丢弃
         setDataError(null)
         setInfo(data)
       })
-      .catch(err => {
+      .catch((err) => {
         if (seq !== infoSeq.current) return
         setDataError((err as Error).message)
       })
@@ -68,12 +71,12 @@ export default function App() {
     const seq = ++rowsSeq.current
     setLoadingRows(true)
     apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, { page, pageSize })
-      .then(data => {
+      .then((data) => {
         if (seq !== rowsSeq.current) return
         setDataError(null)
         setRows(data)
       })
-      .catch(err => {
+      .catch((err) => {
         if (seq !== rowsSeq.current) return
         setDataError((err as Error).message)
       })
@@ -87,17 +90,25 @@ export default function App() {
     setPageSize(ps)
   }, [])
 
-  // ---- 全局状态：加载失败 / 加载中 ----
+  // ---- 全局状态：加载失败 / 首次加载中 ----
   if (tablesError) {
     return <Result status="error" title="加载失败" subTitle={tablesError} />
   }
-  if (tables === null) {
+  if (schemas === null) {
     return (
       <div className="loading-wrap">
         <Spin size="large" />
       </div>
     )
   }
+
+  const selectedSchema = schemas.find((s) => s.name === selected) ?? null
+  // 行数优先取分页结果（已含 total），详情接口返回前显示 …
+  const rowCountText = rows
+    ? rows.total.toLocaleString()
+    : info
+      ? info.rowCount.toLocaleString()
+      : '…'
 
   return (
     <Layout className="app-layout">
@@ -109,25 +120,12 @@ export default function App() {
         onCollapse={setCollapsed}
         className="app-sider"
       >
-        <TableList
-          tables={tables}
-          selected={selected}
-          collapsed={collapsed}
-          onSelect={selectTable}
-        />
+        <TableList tables={schemas} selected={selected} collapsed={collapsed} onSelect={selectTable} />
       </Sider>
 
       <Content className="app-content">
-        {!info ? (
-          dataError ? (
-            <Alert type="error" showIcon title={dataError} />
-          ) : tables.length === 0 ? (
-            <Empty description="数据库中没有表或视图" style={{ marginTop: 80 }} />
-          ) : (
-            <div className="loading-wrap">
-              <Spin size="large" />
-            </div>
-          )
+        {selectedSchema === null ? (
+          <Empty description="数据库中没有表或视图" style={{ marginTop: 80 }} />
         ) : (
           <>
             <div className="table-header">
@@ -135,12 +133,10 @@ export default function App() {
                 level={4}
                 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}
               >
-                {info.type === 'view' ? <EyeOutlined /> : <TableOutlined />}
-                {info.name}
-                <Tag>{info.type === 'view' ? '视图' : '表'}</Tag>
-                <Typography.Text type="secondary">
-                  共 {info.rowCount.toLocaleString()} 行
-                </Typography.Text>
+                {selectedSchema.type === 'view' ? <EyeOutlined /> : <TableOutlined />}
+                {selectedSchema.name}
+                <Tag>{selectedSchema.type === 'view' ? '视图' : '表'}</Tag>
+                <Typography.Text type="secondary">共 {rowCountText} 行</Typography.Text>
               </Typography.Title>
             </div>
             {dataError && (
@@ -157,22 +153,21 @@ export default function App() {
                 {
                   key: 'data',
                   label: '数据',
-                  children: rows ? (
+                  children: (
                     <DataTable
-                      info={info}
+                      tableName={selectedSchema.name}
+                      columns={selectedSchema.columns}
                       rows={rows}
                       loading={loadingRows}
                       onPageChange={handlePageChange}
                     />
-                  ) : loadingRows ? (
-                    <div className="loading-wrap">
-                      <Spin size="large" />
-                    </div>
-                  ) : (
-                    <Empty description="暂无数据" />
-                  )
+                  ),
                 },
-                { key: 'structure', label: '结构', children: <StructureTable info={info} /> }
+                {
+                  key: 'structure',
+                  label: '结构',
+                  children: <StructureTable columns={selectedSchema.columns} info={info} />,
+                },
               ]}
             />
           </>

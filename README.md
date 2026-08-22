@@ -84,7 +84,7 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 
 | 端点                                         | 说明                          |
 | -------------------------------------------- | ----------------------------- |
-| `GET /api/tables`                            | 表/视图清单                   |
+| `GET /api/tables`                            | 表/视图清单（含全部表的字段，一次预取所有表头） |
 | `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数） |
 | `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据                      |
 

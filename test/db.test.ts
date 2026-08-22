@@ -114,6 +114,28 @@ describe('SqliteDb', () => {
     }
   })
 
+  it('listSchemas：一次返回全部表/视图的字段（不含行数）', () => {
+    const db = SqliteDb.open(dbPath)
+    try {
+      const schemas = db.listSchemas()
+      assert.equal(schemas.length, db.listTables().length)
+      const users = schemas.find((s) => s.name === 'users')!
+      assert.equal(users.type, 'table')
+      assert.equal(users.columns.length, 6)
+      assert.deepEqual(
+        users.columns.map((c) => c.name).slice(0, 3),
+        ['id', 'name', 'age']
+      )
+      const view = schemas.find((s) => s.name === 'adult_users')!
+      assert.equal(view.type, 'view')
+      assert.deepEqual(view.columns.map((c) => c.name), ['id', 'name'])
+      // 不包含行数字段
+      assert.ok(!('rowCount' in users))
+    } finally {
+      db.close()
+    }
+  })
+
   it('分页：总数与页码正确，BLOB 被序列化，__row 为全表唯一行号', () => {
     const db = SqliteDb.open(dbPath)
     try {
