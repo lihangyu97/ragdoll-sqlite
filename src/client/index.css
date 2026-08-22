@@ -83,3 +83,28 @@ body,
 .cell-number {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* 数据表格：整行可点击查看详情 */
+.data-table .ant-table-tbody > tr {
+  cursor: pointer;
+}
+
+/* 数据表格列宽封顶：任何单元格不超过 180px（配合 colgroup 数值宽度） */
+.data-table .ant-table-tbody > tr > td {
+  max-width: 180px;
+}
+
+/* 单元格长文本的 hover 完整内容 */
+.cell-popover-content {
+  max-width: 420px;
+  word-break: break-all;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 钉住表格宽度 = 各列宽之和（覆盖 antd 的 min-width: 100%），
+   列宽严格按 colgroup 生效，超长内容省略号截断，容器不足时横向滚动 */
+.data-table .ant-table-container table {
+  min-width: 0 !important;
+}
