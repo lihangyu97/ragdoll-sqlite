@@ -84,3 +84,17 @@ export interface BlobValue {
   bytes: number
   hex: string
 }
+
+/** 库总览中每张表/视图的行数 */
+export interface OverviewTable {
+  name: string
+  type: 'table' | 'view'
+  rowCount: number
+}
+
+/** 库总览（主页 Dashboard：表/视图行数、库文件大小） */
+export interface Overview {
+  dbSizeBytes: number
+  tables: OverviewTable[]
+  totalRows: number
+}

@@ -4,6 +4,7 @@
  */
 import type {
   FilterCondition,
+  Overview,
   RowsResult,
   SortSpec,
   TableInfo,
@@ -45,6 +46,11 @@ async function apiFetch<T>(
 /** 表/视图清单（含字段预取） */
 export function fetchTables(): Promise<TableSchemaEntry[]> {
   return apiFetch<TableSchemaEntry[]>('/api/tables')
+}
+
+/** 库总览（主页 Dashboard：每表行数 + 总行数 + 库文件大小） */
+export function fetchOverview(): Promise<Overview> {
+  return apiFetch<Overview>('/api/overview')
 }
 
 /** 单表结构详情（外键/索引/行数） */

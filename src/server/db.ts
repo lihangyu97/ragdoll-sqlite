@@ -1,9 +1,11 @@
+import { statSync } from 'node:fs'
 import Database from 'better-sqlite3'
 import type {
   ColumnInfo,
   FilterCondition,
   ForeignKeyInfo,
   IndexInfo,
+  Overview,
   RowsResult,
   SortSpec,
   TableEntry,
@@ -38,11 +40,13 @@ export function serializeValue(value: unknown): unknown {
 /** 只读 SQLite 连接封装：打开、探活、元数据、分页查询 */
 export class SqliteDb {
   private readonly db: Database.Database
+  private readonly filePath: string
   /** 行数缓存：只读打开，行数不会自行变化，首次 count(*) 后复用 */
   private readonly rowCountCache = new Map<string, number>()
 
-  private constructor(db: Database.Database) {
+  private constructor(db: Database.Database, filePath: string) {
     this.db = db
+    this.filePath = filePath
   }
 
   /**
@@ -63,7 +67,17 @@ export class SqliteDb {
       db.close()
       throw new Error(`不是有效的 SQLite 数据库文件`, { cause: err })
     }
-    return new SqliteDb(db)
+    return new SqliteDb(db, path)
+  }
+
+  /** 库总览：每表行数（复用缓存）+ 总行数 + 库文件大小（主页 Dashboard 用） */
+  overview(): Overview {
+    const tables = this.listTables().map(t => ({ ...t, rowCount: this.rowCount(t.name) }))
+    return {
+      dbSizeBytes: statSync(this.filePath).size,
+      tables,
+      totalRows: tables.reduce((sum, t) => sum + t.rowCount, 0)
+    }
   }
 
   /** 表/视图清单（排除 sqlite_% 内部表） */
