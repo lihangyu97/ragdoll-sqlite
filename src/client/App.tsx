@@ -21,8 +21,18 @@ export default function App() {
   const [tablesError, setTablesError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
   const [view, setView] = useState<ViewKey>('tables')
-  const { selected, select, info, rows, loadingRows, dataError, clearError, onPageChange } =
-    useTableData()
+  const {
+    selected,
+    select,
+    info,
+    rows,
+    loadingRows,
+    dataError,
+    clearError,
+    onPageChange,
+    filters,
+    setFilters
+  } = useTableData()
 
   // 初始加载：表/视图清单 + 字段预取（一次请求），并自动选中第一个
   useEffect(() => {
@@ -118,6 +128,8 @@ export default function App() {
             dataError={dataError}
             clearError={clearError}
             onPageChange={onPageChange}
+            filters={filters}
+            onFiltersChange={setFilters}
           />
         )}
       </Content>

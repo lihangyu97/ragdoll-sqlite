@@ -1,4 +1,4 @@
-import type { RowsResult, TableInfo, TableSchemaEntry } from '../shared/types.js'
+import type { FilterCondition, RowsResult, TableInfo, TableSchemaEntry } from '../shared/types.js'
 import type { SqliteDb } from './db.js'
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from './db.js'
 
@@ -30,7 +30,8 @@ export function handleRows(
   db: SqliteDb,
   name: string,
   pageRaw: string | null,
-  pageSizeRaw: string | null
+  pageSizeRaw: string | null,
+  filterRaw: string | null
 ): RowsResult {
   if (!name) throw new ApiError(400, '缺少表名')
   const page = pageRaw === null ? 1 : Number(pageRaw)
@@ -41,9 +42,21 @@ export function handleRows(
   if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
     throw new ApiError(400, `pageSize 必须是 1-${MAX_PAGE_SIZE} 的整数`)
   }
+  let filters: FilterCondition[] = []
+  if (filterRaw) {
+    try {
+      const parsed: unknown = JSON.parse(filterRaw)
+      if (!Array.isArray(parsed)) throw new Error('not array')
+      filters = parsed as FilterCondition[]
+    } catch {
+      throw new ApiError(400, 'filter 参数必须是合法的 JSON 数组')
+    }
+  }
   try {
-    return db.rows(name, page, pageSize)
+    return db.rows(name, page, pageSize, filters)
   } catch (err) {
-    throw new ApiError(404, (err as Error).message)
+    const msg = (err as Error).message
+    // 表不存在 → 404；未知字段/运算符 → 400
+    throw new ApiError(msg.includes('不存在') ? 404 : 400, msg)
   }
 }

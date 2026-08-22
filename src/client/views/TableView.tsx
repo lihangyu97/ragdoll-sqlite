@@ -1,7 +1,16 @@
-import { EyeOutlined, TableOutlined } from '@ant-design/icons'
-import { Alert, Spin, Tabs, Tag, Typography } from 'antd'
-import type { ColumnInfo, RowsResult, TableInfo, TableSchemaEntry } from '../../shared/types.js'
+import { EyeOutlined, FilterOutlined, TableOutlined } from '@ant-design/icons'
+import { Alert, Button, Spin, Tabs, Tag, Typography } from 'antd'
+import { useState } from 'react'
+import type {
+  ColumnInfo,
+  FilterCondition,
+  RowsResult,
+  TableInfo,
+  TableSchemaEntry
+} from '../../shared/types.js'
 import DataTable from '../components/DataTable.js'
+import FilterBar from '../components/FilterBar.js'
+import FilterModal from '../components/FilterModal.js'
 import StructureTable from '../components/StructureTable.js'
 
 interface TableViewProps {
@@ -14,9 +23,11 @@ interface TableViewProps {
   dataError: string | null
   clearError: () => void
   onPageChange: (page: number, pageSize: number) => void
+  filters: FilterCondition[]
+  onFiltersChange: (filters: FilterCondition[]) => void
 }
 
-/** 表数据浏览视图：表头（名称/类型/行数）+ 数据/结构 Tabs */
+/** 表数据浏览视图：表头（名称/类型/行数/查询按钮）+ 数据/结构 Tabs（数据可按列过滤） */
 export default function TableView({
   schema,
   columns,
@@ -25,8 +36,11 @@ export default function TableView({
   loadingRows,
   dataError,
   clearError,
-  onPageChange
+  onPageChange,
+  filters,
+  onFiltersChange
 }: TableViewProps) {
+  const [queryOpen, setQueryOpen] = useState(false)
   const rowCountText = loadingRows
     ? '…'
     : rows
@@ -48,6 +62,15 @@ export default function TableView({
           {schema.name}
           <Tag color={isView ? 'cyan' : 'green'}>{isView ? '视图' : '表'}</Tag>
           <Typography.Text type="secondary">共 {rowCountText} 行</Typography.Text>
+          <Button
+            size="small"
+            type="primary"
+            icon={<FilterOutlined />}
+            style={{ marginLeft: 8 }}
+            onClick={() => setQueryOpen(true)}
+          >
+            查询
+          </Button>
         </Typography.Title>
       </div>
       {dataError && (
@@ -70,14 +93,23 @@ export default function TableView({
                   <Spin size="large" />
                 </div>
               ) : (
-                <DataTable
-                  key={schema.name}
-                  tableName={schema.name}
-                  columns={columns}
-                  rows={rows}
-                  loading={loadingRows}
-                  onPageChange={onPageChange}
-                />
+                <>
+                  {filters.length > 0 && (
+                    <FilterBar
+                      filters={filters}
+                      onRemove={i => onFiltersChange(filters.filter((_, j) => j !== i))}
+                      onClear={() => onFiltersChange([])}
+                    />
+                  )}
+                  <DataTable
+                    key={schema.name}
+                    tableName={schema.name}
+                    columns={columns}
+                    rows={rows}
+                    loading={loadingRows}
+                    onPageChange={onPageChange}
+                  />
+                </>
               )
           },
           {
@@ -86,6 +118,17 @@ export default function TableView({
             children: <StructureTable columns={columns} info={info} />
           }
         ]}
+      />
+
+      <FilterModal
+        open={queryOpen}
+        columns={columns}
+        initial={filters}
+        onCancel={() => setQueryOpen(false)}
+        onSubmit={next => {
+          onFiltersChange(next)
+          setQueryOpen(false)
+        }}
       />
     </>
   )

@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import type {
   ColumnInfo,
+  FilterCondition,
   ForeignKeyInfo,
   IndexInfo,
   RowsResult,
@@ -193,19 +194,25 @@ export class SqliteDb {
     }
   }
 
-  /** 分页数据（已序列化为 JSON 安全形态） */
-  rows(name: string, page: number, pageSize: number): RowsResult {
+  /**
+   * 分页数据（已序列化为 JSON 安全形态）。
+   * filters：可选过滤条件（列名走表结构白名单校验，值全部参数化）。
+   * 注意：过滤态不能复用行数缓存（缓存的是全表 count），无过滤时仍走缓存。
+   */
+  rows(name: string, page: number, pageSize: number, filters: FilterCondition[] = []): RowsResult {
     this.requireTable(name)
     const safePage = Math.max(1, Math.floor(page) || 1)
     const safePageSize = Math.min(
       MAX_PAGE_SIZE,
       Math.max(1, Math.floor(pageSize) || DEFAULT_PAGE_SIZE)
     )
-    const total = this.rowCount(name)
+    const { where, params } = this.buildWhere(name, filters)
+    const total =
+      filters.length === 0 ? this.rowCount(name) : this.countWithWhere(name, where, params)
     const offset = (safePage - 1) * safePageSize
     const rows = this.db
-      .prepare(`SELECT * FROM ${quoteIdent(name)} LIMIT ? OFFSET ?`)
-      .all(safePageSize, offset) as Record<string, unknown>[]
+      .prepare(`SELECT * FROM ${quoteIdent(name)}${where} LIMIT ? OFFSET ?`)
+      .all(...params, safePageSize, offset) as Record<string, unknown>[]
     return {
       total,
       page: safePage,
@@ -218,6 +225,74 @@ export class SqliteDb {
         return out
       })
     }
+  }
+
+  /**
+   * 由过滤条件生成 WHERE 子句与参数。
+   * 列名必须存在于该表的真实结构（白名单），运算符白名单，值全部参数化。
+   */
+  private buildWhere(
+    name: string,
+    filters: FilterCondition[]
+  ): { where: string; params: unknown[] } {
+    if (filters.length === 0) return { where: '', params: [] }
+    const knownColumns = new Set(this.columnsOf(name).map(c => c.name))
+    const clauses: string[] = []
+    const params: unknown[] = []
+    for (const f of filters) {
+      if (!knownColumns.has(f.column)) {
+        throw new Error(`未知字段: ${f.column}`)
+      }
+      const ident = quoteIdent(f.column)
+      switch (f.op) {
+        case 'eq':
+          clauses.push(`${ident} = ?`)
+          params.push(f.value)
+          break
+        case 'ne':
+          clauses.push(`${ident} != ?`)
+          params.push(f.value)
+          break
+        case 'gt':
+          clauses.push(`${ident} > ?`)
+          params.push(f.value)
+          break
+        case 'gte':
+          clauses.push(`${ident} >= ?`)
+          params.push(f.value)
+          break
+        case 'lt':
+          clauses.push(`${ident} < ?`)
+          params.push(f.value)
+          break
+        case 'lte':
+          clauses.push(`${ident} <= ?`)
+          params.push(f.value)
+          break
+        case 'like':
+          clauses.push(`${ident} LIKE ? ESCAPE '\\'`)
+          params.push(f.value)
+          break
+        case 'isNull':
+          clauses.push(`${ident} IS NULL`)
+          break
+        case 'isNotNull':
+          clauses.push(`${ident} IS NOT NULL`)
+          break
+        default:
+          throw new Error(`不支持的运算符: ${f.op}`)
+      }
+    }
+    return { where: ` WHERE ${clauses.join(' AND ')}`, params }
+  }
+
+  /** 带 WHERE 的 count（过滤态专用，不走行数缓存） */
+  private countWithWhere(name: string, where: string, params: unknown[]): number {
+    return (
+      this.db.prepare(`SELECT count(*) AS c FROM ${quoteIdent(name)}${where}`).get(...params) as {
+        c: number
+      }
+    ).c
   }
 
   close(): void {

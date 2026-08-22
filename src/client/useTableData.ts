@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RowsResult, TableInfo } from '../shared/types.js'
+import type { FilterCondition, RowsResult, TableInfo } from '../shared/types.js'
 import { apiFetch } from './api.js'
 
 export interface UseTableData {
@@ -13,13 +13,15 @@ export interface UseTableData {
   page: number
   pageSize: number
   onPageChange: (page: number, pageSize: number) => void
+  filters: FilterCondition[]
+  setFilters: (filters: FilterCondition[]) => void
 }
 
 /**
- * 选中表的数据获取：结构详情 + 分页数据。
- * - 请求序号守卫：切换表/翻页后丢弃过期响应，避免旧数据覆盖新状态（卡 loading/闪错数据）
+ * 选中表的数据获取：结构详情 + 分页数据 + 按列过滤。
+ * - 请求序号守卫：切换表/翻页/改过滤后丢弃过期响应，避免旧数据覆盖新状态
  * - 切换表时保留旧行（loading 遮罩下）避免表格塌缩；加载失败则清空，防止“新表头 + 旧数据”
- * - 重复选择当前表时不重置（避免结构 Tab 卡在加载）
+ * - 过滤条件按表持有：切表清空、修改后回到第 1 页
  */
 export function useTableData(): UseTableData {
   const [selected, setSelected] = useState<string | null>(null)
@@ -29,6 +31,7 @@ export function useTableData(): UseTableData {
   const [pageSize, setPageSize] = useState(10)
   const [loadingRows, setLoadingRows] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
+  const [filters, setFiltersState] = useState<FilterCondition[]>([])
   const infoSeq = useRef(0)
   const rowsSeq = useRef(0)
   const selectedRef = useRef<string | null>(null)
@@ -40,6 +43,7 @@ export function useTableData(): UseTableData {
     setPage(1)
     setInfo(null)
     setDataError(null)
+    setFiltersState([]) // 过滤条件按表持有，切表清空
     // rows 不清空：旧行保留在 loading 遮罩下，避免表格塌缩导致滚动条闪烁
   }, [])
 
@@ -59,7 +63,7 @@ export function useTableData(): UseTableData {
       })
   }, [selected])
 
-  // 分页数据
+  // 分页数据（带过滤条件）
   useEffect(() => {
     if (!selected) return
     const seq = ++rowsSeq.current
@@ -68,7 +72,9 @@ export function useTableData(): UseTableData {
     queueMicrotask(() => {
       if (seq === rowsSeq.current) setLoadingRows(true)
     })
-    apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, { page, pageSize })
+    const params: Record<string, string | number> = { page, pageSize }
+    if (filters.length > 0) params.filter = JSON.stringify(filters)
+    apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, params)
       .then(data => {
         if (seq !== rowsSeq.current) return
         setDataError(null)
@@ -82,13 +88,18 @@ export function useTableData(): UseTableData {
       .finally(() => {
         if (seq === rowsSeq.current) setLoadingRows(false)
       })
-  }, [selected, page, pageSize])
+  }, [selected, page, pageSize, filters])
 
   const clearError = useCallback(() => setDataError(null), [])
 
   const onPageChange = useCallback((p: number, ps: number) => {
     setPage(p)
     setPageSize(ps)
+  }, [])
+
+  const setFilters = useCallback((next: FilterCondition[]) => {
+    setFiltersState(next)
+    setPage(1) // 改过滤条件后回到第 1 页
   }, [])
 
   return {
@@ -101,6 +112,8 @@ export function useTableData(): UseTableData {
     clearError,
     page,
     pageSize,
-    onPageChange
+    onPageChange,
+    filters,
+    setFilters
   }
 }

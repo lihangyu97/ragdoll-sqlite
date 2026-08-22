@@ -5,6 +5,7 @@ import path from 'node:path'
 import { after, before, describe, it } from 'node:test'
 import Database from 'better-sqlite3'
 import { SCHEMA_PREFETCH_THRESHOLD, serializeValue, SqliteDb } from '../src/server/db.js'
+import type { FilterOperator } from '../src/shared/types.js'
 
 let dir: string
 let dbPath: string
@@ -173,6 +174,64 @@ describe('SqliteDb', () => {
       assert.equal(db.tableInfo('users').rowCount, 35)
       assert.equal(db.rows('users', 1, 10).total, 35) // 复用缓存
       assert.equal(db.tableInfo('users').rowCount, 35) // 复用缓存
+    } finally {
+      db.close()
+    }
+  })
+
+  it('过滤：eq/like/isNull/gte，参数化与总数正确', () => {
+    const db = SqliteDb.open(dbPath)
+    try {
+      // eq
+      const eq = db.rows('users', 1, 10, [{ column: 'id', op: 'eq', value: 5 }])
+      assert.equal(eq.total, 1)
+      assert.equal(eq.rows[0].id, 5)
+
+      // like（name 含 user-1 → user-1 + user-10..user-19 = 11 条）
+      const like = db.rows('users', 1, 10, [{ column: 'name', op: 'like', value: '%user-1%' }])
+      assert.equal(like.total, 11)
+
+      // gte（age >= 40 → 18+i>=40 → i>=22 → 14 条）
+      const gte = db.rows('users', 1, 10, [{ column: 'age', op: 'gte', value: 40 }])
+      assert.equal(gte.total, 14)
+
+      // isNull（avatar 为 NULL → 35 - 11(有 blob) = 24 条）
+      const isNull = db.rows('users', 1, 10, [{ column: 'avatar', op: 'isNull' }])
+      assert.equal(isNull.total, 24)
+
+      // 多条件 AND
+      const multi = db.rows('users', 1, 10, [
+        { column: 'age', op: 'gte', value: 40 },
+        { column: 'avatar', op: 'isNotNull' }
+      ])
+      const all = db
+        .rows('users', 1, 100)
+        .rows.filter(r => Number(r.age) >= 40 && r.avatar !== null)
+      assert.equal(multi.total, all.length)
+
+      // 过滤态分页正确
+      const page2 = db.rows('users', 2, 5, [{ column: 'age', op: 'gte', value: 40 }])
+      assert.equal(page2.page, 2)
+      assert.equal(page2.rows.length, Math.min(5, Math.max(0, 14 - 5)))
+    } finally {
+      db.close()
+    }
+  })
+
+  it('过滤：未知字段/非法运算符抛错', () => {
+    const db = SqliteDb.open(dbPath)
+    try {
+      assert.throws(
+        () => db.rows('users', 1, 10, [{ column: 'nope', op: 'eq', value: 1 }]),
+        /未知字段/
+      )
+      assert.throws(
+        () =>
+          db.rows('users', 1, 10, [
+            { column: 'id', op: 'bad' as FilterOperator, value: 1 } // 非法运算符（绕过类型）
+          ]),
+        /不支持的运算符/
+      )
     } finally {
       db.close()
     }

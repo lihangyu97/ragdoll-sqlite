@@ -109,7 +109,8 @@ async function handleApi(
         db,
         rowsMatch[1],
         url.searchParams.get('page'),
-        url.searchParams.get('pageSize')
+        url.searchParams.get('pageSize'),
+        url.searchParams.get('filter')
       )
       sendJson(res, 200, result)
       return

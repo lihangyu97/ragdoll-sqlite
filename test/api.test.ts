@@ -82,6 +82,24 @@ describe('HTTP API（真实服务器）', () => {
     assert.equal(data.rows[0].id, 1)
   })
 
+  it('filter 参数：过滤后返回正确 total 与行', async () => {
+    const filter = encodeURIComponent(JSON.stringify([{ column: 'id', op: 'eq', value: 2 }]))
+    const res = await fetch(`${base()}/api/tables/users/rows?t=${token}&filter=${filter}`)
+    assert.equal(res.status, 200)
+    const data = (await res.json()) as { total: number; rows: Array<{ id: number }> }
+    assert.equal(data.total, 1)
+    assert.equal(data.rows[0].id, 2)
+  })
+
+  it('filter 参数：非法 JSON / 未知字段返回 400', async () => {
+    const bad = await fetch(`${base()}/api/tables/users/rows?t=${token}&filter=not-json`)
+    assert.equal(bad.status, 400)
+    const unknown = await fetch(
+      `${base()}/api/tables/users/rows?t=${token}&filter=${encodeURIComponent(JSON.stringify([{ column: 'nope', op: 'eq', value: 1 }]))}`
+    )
+    assert.equal(unknown.status, 400)
+  })
+
   it('未知表 404；pageSize 超上限 400', async () => {
     const notFound = await fetch(`${base()}/api/tables/nope?t=${token}`)
     assert.equal(notFound.status, 404)

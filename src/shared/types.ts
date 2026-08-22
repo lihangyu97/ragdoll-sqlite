@@ -1,3 +1,14 @@
+/** 过滤运算符 */
+export type FilterOperator =
+  'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'isNull' | 'isNotNull'
+
+/** 单条过滤条件（isNull/isNotNull 无 value） */
+export interface FilterCondition {
+  column: string
+  op: FilterOperator
+  value?: unknown
+}
+
 /** sqlite_master 中的表/视图条目 */
 export interface TableEntry {
   name: string
