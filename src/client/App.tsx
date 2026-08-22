@@ -1,37 +1,30 @@
 import { EyeOutlined, MenuFoldOutlined, MenuUnfoldOutlined, TableOutlined } from '@ant-design/icons'
 import { Alert, Empty, Layout, Result, Spin, Tabs, Tag, Typography } from 'antd'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RowsResult, TableInfo, TableSchemaEntry } from '../shared/types.js'
+import { useEffect, useState } from 'react'
+import type { TableSchemaEntry } from '../shared/types.js'
 import { apiFetch } from './api.js'
 import DataTable from './components/DataTable.js'
 import StructureTable from './components/StructureTable.js'
 import TableList from './components/TableList.js'
+import { useTableData } from './useTableData.js'
 
 const { Sider, Content } = Layout
 
 /**
  * 应用容器：负责状态与数据获取（表清单+全部表头预取 / 行数据 / 结构详情），
- * 布局组装（侧边栏 + 内容区），具体的 UI 渲染委托给 components/ 下的子组件。
+ * 布局组装（侧边栏 + 内容区），数据获取逻辑在 useTableData hook 中。
  *
- * 加载策略：进入页面即预取全部表的字段（/api/tables），因此切换表时
- * 表头立即可用，行数据在表格内部 loading，不再整页替换。
+ * 加载策略：进入页面即预取全部表的字段（/api/tables，大库阈值内），
+ * 切换表时表头立即可用，行数据在表格内部 loading；超大库（>50 表）由详情接口按需取字段。
  */
 export default function App() {
   const [schemas, setSchemas] = useState<TableSchemaEntry[] | null>(null)
   const [tablesError, setTablesError] = useState<string | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
-  const [info, setInfo] = useState<TableInfo | null>(null)
-  const [rows, setRows] = useState<RowsResult | null>(null)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [loadingRows, setLoadingRows] = useState(false)
-  const [dataError, setDataError] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
-  // 请求序号守卫：切换表/翻页后，丢弃过期请求的响应，避免旧数据覆盖新状态（卡 loading/闪错数据）
-  const infoSeq = useRef(0)
-  const rowsSeq = useRef(0)
+  const { selected, select, info, rows, loadingRows, dataError, clearError, onPageChange } =
+    useTableData()
 
-  // 初始加载：表/视图清单 + 全部表字段（一次请求），并自动选中第一个
+  // 初始加载：表/视图清单 + 字段预取（一次请求），并自动选中第一个
   useEffect(() => {
     apiFetch<TableSchemaEntry[]>('/api/tables')
       .then(list => {
@@ -43,59 +36,10 @@ export default function App() {
           return
         }
         setSchemas(list)
-        if (list.length > 0) setSelected(list[0].name)
+        if (list.length > 0) select(list[0].name)
       })
       .catch(err => setTablesError((err as Error).message))
-  }, [])
-
-  const selectTable = useCallback((name: string) => {
-    setSelected(name)
-    setPage(1)
-    setInfo(null)
-    // 不清空 rows：旧行保留在 loading 遮罩下，避免表格塌缩导致滚动条闪烁
-    setDataError(null)
-  }, [])
-
-  // 加载选中表的结构详情（外键/索引；字段已由 schema 预取，无需等待）
-  useEffect(() => {
-    if (!selected) return
-    const seq = ++infoSeq.current
-    apiFetch<TableInfo>(`/api/tables/${encodeURIComponent(selected)}`)
-      .then(data => {
-        if (seq !== infoSeq.current) return // 过期响应，丢弃
-        setDataError(null)
-        setInfo(data)
-      })
-      .catch(err => {
-        if (seq !== infoSeq.current) return
-        setDataError((err as Error).message)
-      })
-  }, [selected])
-
-  // 加载选中表的分页数据
-  useEffect(() => {
-    if (!selected) return
-    const seq = ++rowsSeq.current
-    setLoadingRows(true)
-    apiFetch<RowsResult>(`/api/tables/${encodeURIComponent(selected)}/rows`, { page, pageSize })
-      .then(data => {
-        if (seq !== rowsSeq.current) return
-        setDataError(null)
-        setRows(data)
-      })
-      .catch(err => {
-        if (seq !== rowsSeq.current) return
-        setDataError((err as Error).message)
-      })
-      .finally(() => {
-        if (seq === rowsSeq.current) setLoadingRows(false)
-      })
-  }, [selected, page, pageSize])
-
-  const handlePageChange = useCallback((p: number, ps: number) => {
-    setPage(p)
-    setPageSize(ps)
-  }, [])
+  }, [select])
 
   // ---- 全局状态：加载失败 / 首次加载中 ----
   if (tablesError) {
@@ -110,6 +54,11 @@ export default function App() {
   }
 
   const selectedSchema = schemas.find(s => s.name === selected) ?? null
+  // 超大库（>50 表）时 schema 不带字段 → 用详情接口的 columns 兜底
+  const tableColumns =
+    selectedSchema && selectedSchema.columns.length > 0
+      ? selectedSchema.columns
+      : (info?.columns ?? [])
   // 行数：加载中显示 …，优先取分页结果（已含 total），详情接口返回前再取 rowCount
   const rowCountText = loadingRows
     ? '…'
@@ -131,10 +80,10 @@ export default function App() {
         className="app-sider"
       >
         <div className="sider-logo">
-          <img src="/favicon.svg" alt="ragdoll-sqlite" className="sider-logo-icon" />
+          <img src="/favicon.svg" alt="RagdollSqlite" className="sider-logo-icon" />
           {!collapsed && <span className="sider-logo-title">RagdollSqlite</span>}
         </div>
-        <TableList tables={schemas} selected={selected} onSelect={selectTable} />
+        <TableList tables={schemas} selected={selected} onSelect={select} />
         <div
           className="sider-trigger"
           title={collapsed ? '展开侧边栏' : '收起侧边栏'}
@@ -167,7 +116,7 @@ export default function App() {
                 showIcon
                 title={dataError}
                 style={{ marginBottom: 12 }}
-                closable={{ onClose: () => setDataError(null) }}
+                closable={{ onClose: clearError }}
               />
             )}
             <Tabs
@@ -175,20 +124,26 @@ export default function App() {
                 {
                   key: 'data',
                   label: '数据',
-                  children: (
-                    <DataTable
-                      tableName={selectedSchema.name}
-                      columns={selectedSchema.columns}
-                      rows={rows}
-                      loading={loadingRows}
-                      onPageChange={handlePageChange}
-                    />
-                  )
+                  children:
+                    tableColumns.length === 0 ? (
+                      <div className="loading-wrap">
+                        <Spin size="large" />
+                      </div>
+                    ) : (
+                      <DataTable
+                        key={selectedSchema.name}
+                        tableName={selectedSchema.name}
+                        columns={tableColumns}
+                        rows={rows}
+                        loading={loadingRows}
+                        onPageChange={onPageChange}
+                      />
+                    )
                 },
                 {
                   key: 'structure',
                   label: '结构',
-                  children: <StructureTable columns={selectedSchema.columns} info={info} />
+                  children: <StructureTable columns={tableColumns} info={info} />
                 }
               ]}
             />

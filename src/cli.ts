@@ -3,10 +3,9 @@ import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { DEV_API_PORT } from './shared/constants.js'
 import { SqliteDb } from './server/db.js'
 import { startServer } from './server/http.js'
-
-const DEV_DEFAULT_PORT = 7860
 
 interface CliOptions {
   dbPath: string
@@ -61,7 +60,7 @@ ragdoll-sqlite - 在浏览器中只读浏览 SQLite 数据库
 选项:
   -o, --open      启动后自动打开浏览器（默认只打印地址）
   -p, --port N    指定端口（默认随机）
-  --dev           开发模式：跳过 token 校验、固定端口 ${DEV_DEFAULT_PORT}，
+  --dev           开发模式：跳过 token 校验、固定端口 ${DEV_API_PORT}，
                   页面由 vite dev server (5173) 提供，需先运行 pnpm dev:web
   -h, --help      显示帮助
 `)
@@ -114,7 +113,7 @@ async function main(): Promise<void> {
 
   let server
   try {
-    const finalPort = dev ? (port ?? DEV_DEFAULT_PORT) : (port ?? 0)
+    const finalPort = dev ? (port ?? DEV_API_PORT) : (port ?? 0)
     server = await startServer({ db, webDir, dev, port: finalPort })
   } catch (err) {
     console.error(`错误: 无法启动服务: ${(err as Error).message}`)

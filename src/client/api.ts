@@ -22,7 +22,7 @@ export async function apiFetch<T>(
     return (await res.json()) as T
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new Error('请求超时，请刷新重试')
+      throw new Error('请求超时，请刷新重试', { cause: err })
     }
     throw err
   } finally {

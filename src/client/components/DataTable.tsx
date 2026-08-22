@@ -1,9 +1,9 @@
 import { Descriptions, Modal, Popover, Table, Tag, type TableColumnsType } from 'antd'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { ColumnInfo, RowsResult } from '../../shared/types.js'
 import CellValue, { cellFullText } from './CellValue.js'
 
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100]
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50]
 
 interface DataTableProps {
   tableName: string
@@ -31,10 +31,7 @@ export default function DataTable({
 }: DataTableProps) {
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null)
 
-  // 切换表时关闭残留的行详情弹窗（旧记录与新表字段不匹配）
-  useEffect(() => {
-    setDetail(null)
-  }, [tableName])
+  // 切换表时由 App 通过 key={tableName} 重挂载本组件，行详情弹窗自动关闭
 
   const tableColumns: TableColumnsType<Record<string, unknown>> = [
     {
@@ -65,7 +62,10 @@ export default function DataTable({
       ellipsis: { showTitle: false },
       render: (v: unknown) => (
         // 所有单元格统一 hover Popover 看完整内容（包原生 span 让 Popover 挂载 hover 事件）
-        <Popover trigger="hover" content={<div className="cell-popover-content">{cellFullText(v)}</div>}>
+        <Popover
+          trigger="hover"
+          content={<div className="cell-popover-content">{cellFullText(v)}</div>}
+        >
           <span>
             <CellValue value={v} />
           </span>

@@ -1,8 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-
-// 开发模式下后端固定端口（与 cli.ts 的 --dev 默认端口保持一致）
-const DEV_API_PORT = 7860
+import { DEV_API_PORT } from './src/shared/constants.js'
 
 export default defineConfig({
   plugins: [react()],

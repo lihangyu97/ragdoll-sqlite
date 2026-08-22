@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, describe, it } from 'node:test'
 import Database from 'better-sqlite3'
-import { serializeValue, SqliteDb } from '../src/server/db.js'
+import { SCHEMA_PREFETCH_THRESHOLD, serializeValue, SqliteDb } from '../src/server/db.js'
 
 let dir: string
 let dbPath: string
@@ -119,18 +119,60 @@ describe('SqliteDb', () => {
     try {
       const schemas = db.listSchemas()
       assert.equal(schemas.length, db.listTables().length)
-      const users = schemas.find((s) => s.name === 'users')!
+      const users = schemas.find(s => s.name === 'users')!
       assert.equal(users.type, 'table')
       assert.equal(users.columns.length, 6)
-      assert.deepEqual(
-        users.columns.map((c) => c.name).slice(0, 3),
-        ['id', 'name', 'age']
-      )
-      const view = schemas.find((s) => s.name === 'adult_users')!
+      assert.deepEqual(users.columns.map(c => c.name).slice(0, 3), ['id', 'name', 'age'])
+      const view = schemas.find(s => s.name === 'adult_users')!
       assert.equal(view.type, 'view')
-      assert.deepEqual(view.columns.map((c) => c.name), ['id', 'name'])
+      assert.deepEqual(
+        view.columns.map(c => c.name),
+        ['id', 'name']
+      )
       // 不包含行数字段
       assert.ok(!('rowCount' in users))
+    } finally {
+      db.close()
+    }
+  })
+
+  it('listSchemas：超过阈值时不预取字段，未超过时正常预取', () => {
+    // 大库：SCHEMA_PREFETCH_THRESHOLD + 1 张表
+    const bigPath = path.join(dir, 'big.db')
+    const big = new Database(bigPath)
+    big.exec(
+      Array.from(
+        { length: SCHEMA_PREFETCH_THRESHOLD + 1 },
+        (_, i) => `CREATE TABLE t${i} (a INTEGER);`
+      ).join(' ')
+    )
+    big.close()
+    const bigDb = SqliteDb.open(bigPath)
+    try {
+      const schemas = bigDb.listSchemas()
+      assert.equal(schemas.length, SCHEMA_PREFETCH_THRESHOLD + 1)
+      assert.ok(schemas.every(s => s.columns.length === 0)) // 未预取字段
+    } finally {
+      bigDb.close()
+    }
+
+    // 小库（现有 fixture）：字段齐全
+    const small = SqliteDb.open(dbPath)
+    try {
+      const schemas = small.listSchemas()
+      const users = schemas.find(s => s.name === 'users')!
+      assert.ok(users.columns.length > 0)
+    } finally {
+      small.close()
+    }
+  })
+
+  it('行数缓存：重复调用返回一致结果', () => {
+    const db = SqliteDb.open(dbPath)
+    try {
+      assert.equal(db.tableInfo('users').rowCount, 35)
+      assert.equal(db.rows('users', 1, 10).total, 35) // 复用缓存
+      assert.equal(db.tableInfo('users').rowCount, 35) // 复用缓存
     } finally {
       db.close()
     }

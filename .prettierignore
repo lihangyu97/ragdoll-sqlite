@@ -1,0 +1,7 @@
+# 由 pnpm 生成，保持其原生格式
+pnpm-lock.yaml
+
+dist/
+dist-test/
+node_modules/
+.pnpm-store/

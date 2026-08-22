@@ -9,7 +9,7 @@
 - 🔒 **只读**：以 `readonly` 模式打开数据库，页面无任何写入口
 - 📋 表 / 视图清单，含类型图标
 - 🧱 表结构：字段（类型 / 主键 / 非空 / 默认值）、外键、索引
-- 📄 分页浏览数据（默认 20 条/页，最大 500），NULL / BLOB / 中文 / emoji 安全展示
+- 📄 分页浏览数据（默认 10 条/页，最大 50），NULL / BLOB / 中文 / emoji 安全展示
 - 🛡️ 只监听 `127.0.0.1` + 随机端口 + 随机 token 校验，防止本机其他进程探测
 - 🖨️ 启动后只打印访问地址，需要自动打开浏览器时加 `--open`，Ctrl+C 优雅退出
 
@@ -33,7 +33,10 @@ ragdoll-sqlite ./path/to/database.db
 
 ```bash
 pnpm typecheck      # 类型检查
-pnpm test           # 单元测试（Node 内置 node:test，无测试框架依赖）
+pnpm lint           # ESLint（react-hooks 规则）
+pnpm format         # Prettier 自动格式化
+pnpm format:check   # 格式校验
+pnpm test           # 单元 + 集成测试（Node 内置 node:test，无测试框架依赖）
 pnpm build          # 构建：tsc 编译 CLI/服务端 + vite 构建前端
 pnpm dev:server     # 开发模式后端（固定端口 7860，跳过 token 校验）
 pnpm dev:web        # vite dev server（5173，/api 代理到 7860），前端热更新
@@ -82,11 +85,11 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 
 ## API
 
-| 端点                                         | 说明                          |
-| -------------------------------------------- | ----------------------------- |
+| 端点                                         | 说明                                            |
+| -------------------------------------------- | ----------------------------------------------- |
 | `GET /api/tables`                            | 表/视图清单（含全部表的字段，一次预取所有表头） |
-| `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数） |
-| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据                      |
+| `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数）                   |
+| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据                                        |
 
 所有请求需携带访问令牌 `?t=<token>`（CLI 启动时生成，拼在页面 URL 中）。
 

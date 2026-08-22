@@ -9,8 +9,10 @@ import type {
   TableSchemaEntry
 } from '../shared/types.js'
 
-export const MAX_PAGE_SIZE = 500
+export const MAX_PAGE_SIZE = 50
 export const DEFAULT_PAGE_SIZE = 20
+/** 表数超过该值时，/api/tables 不再预取全部字段（由客户端按需加载，避免启动慢） */
+export const SCHEMA_PREFETCH_THRESHOLD = 50
 
 /** SQL 标识符双引号转义（表名在白名单校验后才插值，见 requireTable） */
 function quoteIdent(name: string): string {
@@ -34,6 +36,8 @@ export function serializeValue(value: unknown): unknown {
 /** 只读 SQLite 连接封装：打开、探活、元数据、分页查询 */
 export class SqliteDb {
   private readonly db: Database.Database
+  /** 行数缓存：只读打开，行数不会自行变化，首次 count(*) 后复用 */
+  private readonly rowCountCache = new Map<string, number>()
 
   private constructor(db: Database.Database) {
     this.db = db
@@ -73,13 +77,29 @@ export class SqliteDb {
 
   /**
    * 全部表/视图及其字段（一次请求拿到所有表头，切换表时无需等待详情接口）。
-   * 不含行数/外键/索引，避免对每个表执行 count(*) 拖慢启动。
+   * 表数超过 SCHEMA_PREFETCH_THRESHOLD 时不预取字段（columns 为空数组），
+   * 由客户端在选中表时通过详情接口按需加载，避免大库启动慢。
    */
   listSchemas(): TableSchemaEntry[] {
-    return this.listTables().map((t) => ({
+    const tables = this.listTables()
+    if (tables.length > SCHEMA_PREFETCH_THRESHOLD) {
+      return tables.map(t => ({ ...t, columns: [] }))
+    }
+    return tables.map(t => ({
       ...t,
-      columns: this.columnsOf(t.name),
+      columns: this.columnsOf(t.name)
     }))
+  }
+
+  /** 表行数（只读库下缓存，重复调用不重复 count(*)） */
+  private rowCount(name: string): number {
+    const cached = this.rowCountCache.get(name)
+    if (cached !== undefined) return cached
+    const c = (
+      this.db.prepare(`SELECT count(*) AS c FROM ${quoteIdent(name)}`).get() as { c: number }
+    ).c
+    this.rowCountCache.set(name, c)
+    return c
   }
 
   /** 单表字段（PRAGMA table_info 映射） */
@@ -92,13 +112,13 @@ export class SqliteDb {
       dflt_value: unknown
       pk: number
     }>
-    return rawColumns.map((c) => ({
+    return rawColumns.map(c => ({
       cid: c.cid,
       name: c.name,
       type: c.type,
       notNull: !!c.notnull,
       defaultValue: c.dflt_value,
-      pk: c.pk,
+      pk: c.pk
     }))
   }
 
@@ -163,11 +183,14 @@ export class SqliteDb {
       }
     })
 
-    const rowCount = (
-      this.db.prepare(`SELECT count(*) AS c FROM ${quoteIdent(name)}`).get() as { c: number }
-    ).c
-
-    return { name, type: typeRow.type, columns, foreignKeys, indexes, rowCount }
+    return {
+      name,
+      type: typeRow.type,
+      columns,
+      foreignKeys,
+      indexes,
+      rowCount: this.rowCount(name)
+    }
   }
 
   /** 分页数据（已序列化为 JSON 安全形态） */
@@ -178,9 +201,7 @@ export class SqliteDb {
       MAX_PAGE_SIZE,
       Math.max(1, Math.floor(pageSize) || DEFAULT_PAGE_SIZE)
     )
-    const total = (
-      this.db.prepare(`SELECT count(*) AS c FROM ${quoteIdent(name)}`).get() as { c: number }
-    ).c
+    const total = this.rowCount(name)
     const offset = (safePage - 1) * safePageSize
     const rows = this.db
       .prepare(`SELECT * FROM ${quoteIdent(name)} LIMIT ? OFFSET ?`)
