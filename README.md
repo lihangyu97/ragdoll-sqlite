@@ -60,14 +60,14 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 
 ## 技术栈
 
-| 层     | 选型                                                                             |
-| ------ | -------------------------------------------------------------------------------- |
-| 语言   | TypeScript（strict）                                                             |
-| SQLite | `better-sqlite3`（只读模式）                                                     |
-| 服务端 | Node 内置 `node:http`（静态托管 + REST API，无第三方框架）                       |
-| 前端   | React 19 + antd v6 + Vite + react-router（HashRouter）（前后端分离 SPA，无 SSR） |
-| 测试   | Node 内置 `node:test`                                                            |
-| 包管理 | pnpm                                                                             |
+| 层     | 选型                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------------ |
+| 语言   | TypeScript（strict）                                                                                         |
+| SQLite | `better-sqlite3`（只读模式）                                                                                 |
+| 服务端 | Node 内置 `node:http`（静态托管 + REST API，无第三方框架）                                                   |
+| 前端   | React 19 + antd v6 + Vite + react-router（HashRouter）+ CodeMirror 6（SQL 编辑器）（前后端分离 SPA，无 SSR） |
+| 测试   | Node 内置 `node:test`                                                                                        |
+| 包管理 | pnpm                                                                                                         |
 
 ## 目录结构
 
@@ -84,13 +84,13 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 │   ├── client/             # 前端 SPA（React 19 + antd v6 + react-router）
 │   │   ├── App.tsx          # 布局组装 + 全局加载态 + 路由表（由 NAV_ROUTES 生成）
 │   │   ├── routes.tsx       # 顶层路由配置（单源：Routes 与 SiderMenu 共用）
-│   │   ├── SchemasContext.tsx  # 表清单全局预取（SchemasProvider + useSchemas）
+│   │   ├── context/         # 全局 Context：SchemasContext（表清单预取）/ ViewsContext（自定义视图）
 │   │   ├── api.ts           # API 层：业务函数（fetchTables / fetchTableInfo / fetchRows / refreshRowCountCache）
 │   │   ├── hooks/           # 数据获取 hooks：useTableData（详情/分页/序号守卫）
 │   │   ├── components/      # 全局共享组件：SiderMenu（侧边栏菜单）
 │   │   └── views/           # 页面视图（文件夹 + index.tsx，第一级只有页面，目录名 = 路由路径）
 │   │       ├── home/        # 主页（预留图表）
-│   │       ├── query/       # 查询（预留 SQL 编辑器）
+│   │       ├── query/       # 查询（SQL 控制台：CodeMirror 编辑器 + 结果预览）
 │   │       └── table/       # 表数据页：?table= 参数驱动，表/视图共用
 │   │           ├── index.css    # 页面专属样式（含 TableView 组件树）
 │   │           └── TableView/   # 页面主体组件（私有）：index.tsx + components/ + columnUtils.ts
@@ -100,15 +100,20 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 
 ## API
 
-| 端点                                         | 说明                                                       |
-| -------------------------------------------- | ---------------------------------------------------------- |
-| `GET /api/tables`                            | 表/视图清单（表数 ≤50 时一次预取所有表头，更大库按需加载） |
-| `GET /api/overview`                          | 库总览（每表行数 + 总行数 + 库文件大小，复用行数缓存）     |
-| `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数）                              |
-| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据（可选 `filter` / `sortBy` / `sortDir` 参数）      |
-| `POST /api/refresh`                          | 清空行数缓存（外部可能改过库）                             |
+| 端点                                         | 说明                                                         |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `GET /api/tables`                            | 表/视图清单（表数 ≤50 时一次预取所有表头，更大库按需加载）   |
+| `GET /api/overview`                          | 库总览（每表行数 + 总行数 + 库文件大小，复用行数缓存）       |
+| `GET /api/tables/:name`                      | 表结构（字段/外键/索引/行数）                                |
+| `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据（可选 `filter` / `sortBy` / `sortDir` 参数）        |
+| `POST /api/query`                            | 只读 SQL 查询（仅 SELECT/WITH/EXPLAIN/VALUES，上限 1000 行） |
+| `POST /api/refresh`                          | 清空行数缓存（外部可能改过库）                               |
+| `GET/POST /api/views`                        | 自定义视图：列表 / 新建（body: `{name, sql}`）               |
+| `PUT/DELETE /api/views/:id`                  | 自定义视图：更新 / 删除                                      |
 
 所有请求需携带访问令牌 `?t=<token>`（CLI 启动时生成，拼在页面 URL 中）。
+
+自定义视图等**应用数据**存于应用自己的 `~/.ragdoll-sqlite/views.db`（与被浏览的数据库完全隔离，用户库始终保持只读）；打开失败时该功能降级不可用，不影响其他功能。
 
 ## Roadmap
 

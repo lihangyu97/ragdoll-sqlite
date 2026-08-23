@@ -1,6 +1,8 @@
 import type {
+  DatabaseInfo,
   FilterCondition,
   Overview,
+  QueryResult,
   RowsResult,
   SortSpec,
   TableInfo,
@@ -8,6 +10,7 @@ import type {
 } from '../shared/types.js'
 import type { SqliteDb } from './db.js'
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from './db.js'
+import type { ViewsStore } from './views.js'
 
 /** 带 HTTP 状态码的业务错误 */
 export class ApiError extends Error {
@@ -27,6 +30,48 @@ export function handleTables(db: SqliteDb): TableSchemaEntry[] {
 /** 库总览（主页 Dashboard） */
 export function handleOverview(db: SqliteDb): Overview {
   return db.overview()
+}
+
+/** 当前数据库信息 + 最近打开列表（主页展示/切换用） */
+export function handleDatabaseInfo(db: SqliteDb, views: ViewsStore | null): DatabaseInfo {
+  const overview = db.overview()
+  return {
+    current: {
+      path: db.path,
+      dbSizeBytes: overview.dbSizeBytes,
+      tableCount: overview.tables.filter(t => t.type === 'table').length,
+      viewCount: overview.tables.filter(t => t.type === 'view').length,
+      totalRows: overview.totalRows,
+      tables: overview.tables
+    },
+    recent: views ? views.listRecentDatabases() : []
+  }
+}
+
+/** 切换数据库：只读打开新库（完整校验）并记录最近打开 */
+export function handleSwitchDatabase(
+  db: SqliteDb,
+  views: ViewsStore | null,
+  path: string
+): DatabaseInfo {
+  const trimmed = path.trim()
+  if (!trimmed) throw new ApiError(400, '请输入数据库路径')
+  try {
+    db.reopen(trimmed)
+  } catch (err) {
+    throw new ApiError(400, (err as Error).message)
+  }
+  views?.addRecentDatabase(trimmed)
+  return handleDatabaseInfo(db, views)
+}
+
+/** 只读查询（SQL 控制台） */
+export function handleQuery(db: SqliteDb, sql: string): QueryResult {
+  try {
+    return db.query(sql)
+  } catch (err) {
+    throw new ApiError(400, (err as Error).message)
+  }
 }
 
 /** 刷新：清空行数缓存（外部可能改过库），由客户端随后重新拉取数据 */

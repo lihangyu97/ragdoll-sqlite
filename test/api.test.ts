@@ -6,6 +6,7 @@ import { after, before, describe, it } from 'node:test'
 import Database from 'better-sqlite3'
 import { MAX_PAGE_SIZE, SqliteDb } from '../src/server/db.js'
 import { startServer, type ServerHandle } from '../src/server/http.js'
+import { ViewsStore } from '../src/server/views.js'
 
 let dir: string
 let handle: ServerHandle
@@ -35,7 +36,9 @@ before(async () => {
   mkdirSync(webDir, { recursive: true })
   writeFileSync(path.join(webDir, 'index.html'), '<!doctype html><title>ragdoll-test</title>')
 
-  handle = await startServer({ db: SqliteDb.open(dbPath), webDir, dev: false })
+  // 应用存储：临时 views.db（测试隔离，不碰用户主目录）
+  const views = ViewsStore.open(path.join(dir, 'views.db'))
+  handle = await startServer({ db: SqliteDb.open(dbPath), webDir, dev: false, views })
   token = new URL(handle.url).searchParams.get('t') ?? ''
 })
 
@@ -102,6 +105,68 @@ describe('HTTP API（真实服务器）', () => {
     assert.equal(data.pageSize, 10)
     assert.equal(data.rows.length, 2)
     assert.equal(data.rows[0].id, 1)
+  })
+
+  it('POST /api/query：只读 SELECT 返回列与行', async () => {
+    const res = await fetch(`${base()}/api/query?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: 'SELECT id, name FROM users ORDER BY id' })
+    })
+    assert.equal(res.status, 200)
+    const data = (await res.json()) as {
+      columns: string[]
+      rows: Array<Record<string, unknown>>
+      total: number
+      truncated: boolean
+    }
+    assert.deepEqual(data.columns, ['id', 'name'])
+    assert.equal(data.total, 2)
+    assert.equal(data.rows.length, 2)
+    assert.equal(data.rows[0].id, 1)
+    assert.equal(data.truncated, false)
+  })
+
+  it('POST /api/query：拒绝写语句与 PRAGMA（只读白名单）', async () => {
+    const post = (sql: string) =>
+      fetch(`${base()}/api/query?t=${token}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sql })
+      })
+    for (const sql of [
+      'DELETE FROM users',
+      'INSERT INTO users VALUES (1)',
+      'PRAGMA journal_mode',
+      'ATTACH DATABASE'
+    ]) {
+      const res = await post(sql)
+      assert.equal(res.status, 400, `应拒绝: ${sql}`)
+    }
+  })
+
+  it('POST /api/query：语法错误返回 400', async () => {
+    const res = await fetch(`${base()}/api/query?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: 'SELECT FROM' })
+    })
+    assert.equal(res.status, 400)
+  })
+
+  it('POST /api/query：超过 1000 行时截断并标记 truncated', async () => {
+    const res = await fetch(`${base()}/api/query?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sql: 'WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM cnt WHERE x < 2000) SELECT x FROM cnt'
+      })
+    })
+    assert.equal(res.status, 200)
+    const data = (await res.json()) as { rows: unknown[]; total: number; truncated: boolean }
+    assert.equal(data.total, 2000)
+    assert.equal(data.rows.length, 1000)
+    assert.equal(data.truncated, true)
   })
 
   it('filter 参数：过滤后返回正确 total 与行', async () => {
@@ -200,6 +265,145 @@ describe('HTTP API（真实服务器）', () => {
     const data = (await rows.json()) as { total: number; rows: Array<{ note: string }> }
     assert.equal(data.total, 1)
     assert.equal(data.rows[0].note, 'x')
+  })
+
+  it('自定义视图 CRUD：创建 → 列表 → 更新 → 删除', async () => {
+    const post = (body: unknown) =>
+      fetch(`${base()}/api/views?t=${token}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+
+    // 创建两个
+    const a = await post({ name: '活跃用户', sql: 'SELECT * FROM users WHERE id > 0' })
+    assert.equal(a.status, 201)
+    const va = (await a.json()) as { id: number; name: string; sql: string }
+    assert.equal(va.name, '活跃用户')
+
+    const b = await post({ name: '订单汇总', sql: 'SELECT COUNT(*) AS n FROM orders' })
+    assert.equal(b.status, 201)
+    const vb = (await b.json()) as { id: number }
+
+    // 列表：最近更新在前
+    const list = await fetch(`${base()}/api/views?t=${token}`)
+    assert.equal(list.status, 200)
+    const views = (await list.json()) as Array<{ id: number; name: string; createdAt: string }>
+    assert.equal(views.length, 2)
+    assert.equal(views[0].name, '订单汇总') // 后创建的在前
+    assert.ok(views[0].createdAt)
+
+    // 更新名称与 SQL
+    const up = await fetch(`${base()}/api/views/${va.id}?t=${token}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: '活跃用户 v2', sql: 'SELECT id, name FROM users' })
+    })
+    assert.equal(up.status, 200)
+    const vu = (await up.json()) as { name: string; sql: string }
+    assert.equal(vu.name, '活跃用户 v2')
+    assert.equal(vu.sql, 'SELECT id, name FROM users')
+
+    // 删除后列表只剩一个
+    const del = await fetch(`${base()}/api/views/${va.id}?t=${token}`, { method: 'DELETE' })
+    assert.equal(del.status, 200)
+    const afterDel = (await (await fetch(`${base()}/api/views?t=${token}`)).json()) as Array<{
+      id: number
+    }>
+    assert.equal(afterDel.length, 1)
+    assert.equal(afterDel[0].id, vb.id)
+
+    // 删除不存在的 → 404
+    assert.equal(
+      (await fetch(`${base()}/api/views/999?t=${token}`, { method: 'DELETE' })).status,
+      404
+    )
+  })
+
+  it('自定义视图校验：空 name/sql 400、重名 400', async () => {
+    const post = (body: unknown) =>
+      fetch(`${base()}/api/views?t=${token}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+    assert.equal((await post({ name: '', sql: 'SELECT 1' })).status, 400)
+    assert.equal((await post({ name: 'x', sql: '' })).status, 400)
+    // 与上一条用例的「订单汇总」重名
+    assert.equal((await post({ name: '订单汇总', sql: 'SELECT 1' })).status, 400)
+  })
+
+  it('SQL 草稿：默认空 → 保存 → 读取还原 → 覆盖', async () => {
+    const get = async () =>
+      ((await (await fetch(`${base()}/api/draft?t=${token}`)).json()) as { sql: string }).sql
+    const put = (sql: string) =>
+      fetch(`${base()}/api/draft?t=${token}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sql })
+      })
+
+    assert.equal(await get(), '')
+    assert.equal((await put('SELECT * FROM users WHERE id = 2')).status, 200)
+    assert.equal(await get(), 'SELECT * FROM users WHERE id = 2')
+    assert.equal((await put('SELECT 1')).status, 200)
+    assert.equal(await get(), 'SELECT 1')
+  })
+
+  it('数据库信息与切换：当前库展示、切换后表清单/最近打开更新', async () => {
+    // 第二个库
+    const secondPath = path.join(dir, 'second.db')
+    const second = new Database(secondPath)
+    second.exec('CREATE TABLE other (id INTEGER PRIMARY KEY)')
+    second.close()
+
+    // 当前信息
+    const info = (await (await fetch(`${base()}/api/databases?t=${token}`)).json()) as {
+      current: { path: string; tableCount: number; dbSizeBytes: number }
+      recent: Array<{ path: string }>
+    }
+    assert.equal(info.current.path, dbPath)
+    assert.equal(info.current.tableCount, 3)
+    assert.ok(info.current.dbSizeBytes > 0)
+    assert.ok(Array.isArray(info.recent))
+
+    // 切换到第二个库
+    const sw = await fetch(`${base()}/api/databases/switch?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: secondPath })
+    })
+    assert.equal(sw.status, 200)
+    const swData = (await sw.json()) as { current: { path: string; tableCount: number } }
+    assert.equal(swData.current.path, secondPath)
+    assert.equal(swData.current.tableCount, 1)
+
+    // 表清单接口反映新库
+    const tables = (await (await fetch(`${base()}/api/tables?t=${token}`)).json()) as Array<{
+      name: string
+    }>
+    assert.equal(tables.length, 1)
+    assert.equal(tables[0].name, 'other')
+
+    // 最近打开包含新路径
+    const info2 = (await (await fetch(`${base()}/api/databases?t=${token}`)).json()) as {
+      recent: Array<{ path: string }>
+    }
+    assert.ok(info2.recent.some(r => r.path === secondPath))
+
+    // 空路径 / 非法路径 400
+    const empty = await fetch(`${base()}/api/databases/switch?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '' })
+    })
+    assert.equal(empty.status, 400)
+    const bad = await fetch(`${base()}/api/databases/switch?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: path.join(dir, 'nope.db') })
+    })
+    assert.equal(bad.status, 400)
   })
 })
 

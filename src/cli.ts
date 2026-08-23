@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { DEV_API_PORT } from './shared/constants.js'
 import { SqliteDb } from './server/db.js'
 import { startServer } from './server/http.js'
+import { ViewsStore } from './server/views.js'
 
 interface CliOptions {
   dbPath: string
@@ -117,13 +118,23 @@ async function main(): Promise<void> {
   // 静态资源目录：dist/web（vite build 产物，与 cli.js 同级）
   const webDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'web')
 
+  // 应用存储（自定义视图等）：打开失败不阻断服务，视图功能降级不可用
+  let views = null
+  try {
+    views = ViewsStore.open()
+    views.addRecentDatabase(dbPath) // 初始库也记入最近打开
+  } catch (err) {
+    console.warn(`警告: 应用存储打开失败，自定义视图功能不可用（${(err as Error).message}）`)
+  }
+
   let server
   try {
     const finalPort = dev ? (port ?? DEV_API_PORT) : (port ?? 0)
-    server = await startServer({ db, webDir, dev, port: finalPort })
+    server = await startServer({ db, webDir, dev, port: finalPort, views })
   } catch (err) {
     console.error(`错误: 无法启动服务: ${(err as Error).message}`)
     db.close()
+    views?.close()
     process.exit(1)
   }
 
@@ -149,6 +160,7 @@ async function main(): Promise<void> {
     console.log('\n正在退出…')
     void server.close().then(() => {
       db.close()
+      views?.close()
       process.exit(0)
     })
   }

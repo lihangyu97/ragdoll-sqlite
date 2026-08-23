@@ -6,6 +6,7 @@ import type {
   ForeignKeyInfo,
   IndexInfo,
   Overview,
+  QueryResult,
   RowsResult,
   SortSpec,
   TableEntry,
@@ -15,8 +16,13 @@ import type {
 
 export const MAX_PAGE_SIZE = 50
 export const DEFAULT_PAGE_SIZE = 10
+/** SQL 控制台单次查询结果行数上限（防大结果集阻塞，超限截断） */
+export const MAX_QUERY_ROWS = 1000
 /** 表数超过该值时，/api/tables 不再预取全部字段（由客户端按需加载，避免启动慢） */
 export const SCHEMA_PREFETCH_THRESHOLD = 50
+
+/** 只读查询允许的语句前缀（拒绝 PRAGMA / 写语句，保住只读定位） */
+const READONLY_SQL_PREFIX = /^(SELECT|WITH|EXPLAIN|VALUES)\b/i
 
 /** SQL 标识符双引号转义（表名在白名单校验后才插值，见 requireTable） */
 function quoteIdent(name: string): string {
@@ -39,8 +45,8 @@ export function serializeValue(value: unknown): unknown {
 
 /** 只读 SQLite 连接封装：打开、探活、元数据、分页查询 */
 export class SqliteDb {
-  private readonly db: Database.Database
-  private readonly filePath: string
+  private db: Database.Database
+  private filePath: string
   /** 行数缓存：只读打开，行数不会自行变化，首次 count(*) 后复用 */
   private readonly rowCountCache = new Map<string, number>()
 
@@ -70,6 +76,20 @@ export class SqliteDb {
     return new SqliteDb(db, path)
   }
 
+  /** 当前库文件路径（主页展示用） */
+  get path(): string {
+    return this.filePath
+  }
+
+  /** 切换数据库：关闭当前连接，只读打开新库（完整校验），清空行数缓存 */
+  reopen(path: string): void {
+    const next = SqliteDb.open(path)
+    this.db.close()
+    this.db = next.db
+    this.filePath = next.filePath
+    this.rowCountCache.clear()
+  }
+
   /** 库总览：每表行数（复用缓存）+ 总行数 + 库文件大小（主页 Dashboard 用） */
   overview(): Overview {
     const tables = this.listTables().map(t => ({ ...t, rowCount: this.rowCount(t.name) }))
@@ -77,6 +97,32 @@ export class SqliteDb {
       dbSizeBytes: statSync(this.filePath).size,
       tables,
       totalRows: tables.reduce((sum, t) => sum + t.rowCount, 0)
+    }
+  }
+
+  /**
+   * 只读查询（SQL 控制台）：仅允许 SELECT/WITH/EXPLAIN/VALUES 前缀，
+   * better-sqlite3 单语句执行（天然防多语句）；结果序列化 + 行数截断。
+   */
+  query(sql: string): QueryResult {
+    const trimmed = sql.trim()
+    if (!trimmed) throw new Error('SQL 不能为空')
+    if (!READONLY_SQL_PREFIX.test(trimmed)) {
+      throw new Error('仅支持只读查询（SELECT / WITH / EXPLAIN / VALUES 开头）')
+    }
+    const stmt = this.db.prepare(trimmed)
+    const all = stmt.all() as Record<string, unknown>[]
+    const limited = all.slice(0, MAX_QUERY_ROWS)
+    return {
+      columns: stmt.columns().map(c => c.name),
+      rows: limited.map((r, i) => {
+        const out: Record<string, unknown> = {}
+        for (const [k, v] of Object.entries(r)) out[k] = serializeValue(v)
+        out.__row = i + 1
+        return out
+      }),
+      total: all.length,
+      truncated: all.length > MAX_QUERY_ROWS
     }
   }
 

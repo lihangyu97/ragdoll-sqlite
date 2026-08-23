@@ -5,13 +5,17 @@ import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import {
   ApiError,
+  handleDatabaseInfo,
   handleOverview,
+  handleQuery,
   handleRefresh,
   handleRows,
+  handleSwitchDatabase,
   handleTableInfo,
   handleTables
 } from './api.js'
 import type { SqliteDb } from './db.js'
+import type { ViewsStore } from './views.js'
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -38,6 +42,8 @@ export interface ServerOptions {
   webDir: string
   dev: boolean
   port?: number
+  /** 应用存储（自定义视图等）；null 表示不可用（打开失败时降级） */
+  views?: ViewsStore | null
 }
 
 export async function startServer(options: ServerOptions): Promise<ServerHandle> {
@@ -83,6 +89,34 @@ async function handleRequest(
       sendJson(res, 403, { error: '无效的访问令牌' })
       return
     }
+    // 当前数据库信息 + 最近打开（主页展示/切换）
+    if (pathname === '/api/databases') {
+      if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method Not Allowed' })
+        return
+      }
+      sendJson(res, 200, handleDatabaseInfo(options.db, options.views ?? null))
+      return
+    }
+    // 切换数据库（只读打开新库）
+    if (pathname === '/api/databases/switch') {
+      if (req.method !== 'POST') {
+        sendJson(res, 405, { error: 'Method Not Allowed' })
+        return
+      }
+      const body = await readJsonBody(req)
+      const path = typeof body?.path === 'string' ? body.path : ''
+      try {
+        sendJson(res, 200, handleSwitchDatabase(options.db, options.views ?? null, path))
+      } catch (err) {
+        if (err instanceof ApiError) {
+          sendJson(res, err.status, { error: err.message })
+          return
+        }
+        throw err
+      }
+      return
+    }
     // 刷新：清空服务端行数缓存（外部可能改过库）
     if (pathname === '/api/refresh') {
       if (req.method !== 'POST') {
@@ -91,6 +125,35 @@ async function handleRequest(
       }
       handleRefresh(options.db)
       sendJson(res, 200, { ok: true })
+      return
+    }
+    // 只读查询（SQL 控制台）
+    if (pathname === '/api/query') {
+      if (req.method !== 'POST') {
+        sendJson(res, 405, { error: 'Method Not Allowed' })
+        return
+      }
+      const body = await readJsonBody(req)
+      const sql = typeof body?.sql === 'string' ? body.sql : ''
+      try {
+        sendJson(res, 200, handleQuery(options.db, sql))
+      } catch (err) {
+        if (err instanceof ApiError) {
+          sendJson(res, err.status, { error: err.message })
+          return
+        }
+        throw err
+      }
+      return
+    }
+    // 自定义视图（应用存储）
+    if (pathname === '/api/views' || /^\/api\/views\/\d+$/.test(pathname)) {
+      await handleViewsApi(options.views ?? null, pathname, req, res)
+      return
+    }
+    // SQL 编辑器草稿（应用存储）
+    if (pathname === '/api/draft') {
+      await handleDraftApi(options.views ?? null, req, res)
       return
     }
     await handleApi(options.db, pathname, url, res)
@@ -173,6 +236,132 @@ async function serveStatic(webDir: string, pathname: string, res: ServerResponse
     res.end(data)
   } catch {
     sendJson(res, 404, { error: 'Not Found' })
+  }
+}
+
+/** 读取并解析 JSON 请求体（带大小上限，防滥用） */
+function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown> | null> {
+  return new Promise((resolve, reject) => {
+    let data = ''
+    req.on('data', chunk => {
+      data += chunk
+      if (data.length > 1_000_000) {
+        reject(new Error('请求体过大'))
+        req.destroy()
+      }
+    })
+    req.on('end', () => {
+      if (!data) return resolve(null)
+      try {
+        resolve(JSON.parse(data) as Record<string, unknown>)
+      } catch {
+        resolve(null)
+      }
+    })
+    req.on('error', reject)
+  })
+}
+
+/** SQL 编辑器草稿：GET 读取、PUT 保存（单行，跨会话保留） */
+async function handleDraftApi(
+  store: ViewsStore | null,
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  if (!store) {
+    sendJson(res, 500, { error: '应用存储不可用（views.db 打开失败）' })
+    return
+  }
+  try {
+    if (req.method === 'GET') {
+      sendJson(res, 200, { sql: store.getDraft() })
+      return
+    }
+    if (req.method === 'PUT') {
+      const body = (await readJsonBody(req)) ?? {}
+      const sql = typeof body.sql === 'string' ? body.sql : ''
+      store.saveDraft(sql)
+      sendJson(res, 200, { ok: true })
+      return
+    }
+    throw new ApiError(405, 'Method Not Allowed')
+  } catch (err) {
+    if (err instanceof ApiError) {
+      sendJson(res, err.status, { error: err.message })
+      return
+    }
+    throw err
+  }
+}
+
+/** 自定义视图 CRUD：GET/POST /api/views、PUT/DELETE /api/views/:id */
+async function handleViewsApi(
+  store: ViewsStore | null,
+  pathname: string,
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  if (!store) {
+    sendJson(res, 500, { error: '应用存储不可用（views.db 打开失败）' })
+    return
+  }
+  const match = pathname.match(/^\/api\/views\/(\d+)$/)
+  const id = match ? Number(match[1]) : null
+  try {
+    if (id === null) {
+      if (req.method === 'GET') {
+        sendJson(res, 200, store.list())
+      } else if (req.method === 'POST') {
+        const body = (await readJsonBody(req)) ?? {}
+        const name = typeof body.name === 'string' ? body.name.trim() : ''
+        const sql = typeof body.sql === 'string' ? body.sql.trim() : ''
+        if (!name || !sql) throw new ApiError(400, 'name 与 sql 不能为空')
+        try {
+          sendJson(res, 201, store.create(name, sql))
+        } catch {
+          throw new ApiError(400, `自定义视图「${name}」已存在`)
+        }
+      } else {
+        throw new ApiError(405, 'Method Not Allowed')
+      }
+      return
+    }
+    if (req.method === 'PUT') {
+      const body = (await readJsonBody(req)) ?? {}
+      const patch: { name?: string; sql?: string } = {}
+      if (body.name !== undefined) {
+        const name = typeof body.name === 'string' ? body.name.trim() : ''
+        if (!name) throw new ApiError(400, 'name 不能为空')
+        patch.name = name
+      }
+      if (body.sql !== undefined) {
+        const sql = typeof body.sql === 'string' ? body.sql.trim() : ''
+        if (!sql) throw new ApiError(400, 'sql 不能为空')
+        patch.sql = sql
+      }
+      if (Object.keys(patch).length === 0) throw new ApiError(400, '没有可更新的字段')
+      try {
+        sendJson(res, 200, store.update(id, patch))
+      } catch (err) {
+        const msg = (err as Error).message
+        throw new ApiError(msg.includes('已存在') ? 400 : 404, msg)
+      }
+    } else if (req.method === 'DELETE') {
+      try {
+        store.remove(id)
+      } catch (err) {
+        throw new ApiError(404, (err as Error).message)
+      }
+      sendJson(res, 200, { ok: true })
+    } else {
+      throw new ApiError(405, 'Method Not Allowed')
+    }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      sendJson(res, err.status, { error: err.message })
+      return
+    }
+    throw err
   }
 }
 

@@ -348,6 +348,32 @@ describe('SqliteDb', () => {
     writeFileSync(badPath, 'this is not a sqlite database at all')
     assert.throws(() => SqliteDb.open(badPath), /不是有效的 SQLite/)
   })
+
+  it('reopen：切换到另一个库，表清单更新且行数缓存清空', () => {
+    const secondPath = path.join(dir, 'second.db')
+    const second = new Database(secondPath)
+    second.exec('CREATE TABLE other (id INTEGER PRIMARY KEY); INSERT INTO other VALUES (1)')
+    second.close()
+
+    const db = SqliteDb.open(dbPath)
+    try {
+      assert.ok(db.listTables().some(t => t.name === 'users'))
+      assert.equal(db.tableInfo('users').rowCount, 35) // 缓存行数
+
+      db.reopen(secondPath)
+      assert.equal(db.path, secondPath)
+      assert.ok(db.listTables().some(t => t.name === 'other'))
+      assert.ok(!db.listTables().some(t => t.name === 'users'))
+      // 新库行数重新计算（缓存未串）
+      assert.equal(db.tableInfo('other').rowCount, 1)
+
+      // 非法路径切换报错且原库不受影响
+      assert.throws(() => db.reopen(path.join(dir, 'nope.db')), /无法打开|不是有效的/)
+      assert.equal(db.path, secondPath)
+    } finally {
+      db.close()
+    }
+  })
 })
 
 describe('serializeValue', () => {

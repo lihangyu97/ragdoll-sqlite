@@ -98,3 +98,41 @@ export interface Overview {
   tables: OverviewTable[]
   totalRows: number
 }
+
+/** 只读查询结果（SQL 控制台） */
+export interface QueryResult {
+  columns: string[]
+  rows: Record<string, unknown>[]
+  /** 查询实际返回的总行数（可能大于 rows.length，超上限时截断） */
+  total: number
+  truncated: boolean
+}
+
+/** 自定义视图（保存的命名 SQL，存于应用自己的 views.db） */
+export interface CustomView {
+  id: number
+  name: string
+  sql: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** 最近打开的数据库 */
+export interface RecentDatabase {
+  path: string
+  openedAt: string
+}
+
+/** 当前数据库信息 + 最近打开列表（主页展示/切换用） */
+export interface DatabaseInfo {
+  current: {
+    path: string
+    dbSizeBytes: number
+    tableCount: number
+    viewCount: number
+    totalRows: number
+    /** 每表行数（复用行数缓存） */
+    tables: OverviewTable[]
+  } | null
+  recent: RecentDatabase[]
+}

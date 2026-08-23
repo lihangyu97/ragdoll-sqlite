@@ -3,8 +3,11 @@
  * 页面与 hooks 直接调用这里的函数，不直接拼 URL / 操作 fetch。
  */
 import type {
+  CustomView,
+  DatabaseInfo,
   FilterCondition,
   Overview,
+  QueryResult,
   RowsResult,
   SortSpec,
   TableInfo,
@@ -53,6 +56,23 @@ export function fetchOverview(): Promise<Overview> {
   return apiFetch<Overview>('/api/overview')
 }
 
+/** 当前数据库信息 + 最近打开列表（主页展示/切换用） */
+export function fetchDatabases(): Promise<DatabaseInfo> {
+  return apiFetch<DatabaseInfo>('/api/databases')
+}
+
+/** 切换数据库（只读打开新库），返回切换后的信息 */
+export function switchDatabase(path: string): Promise<DatabaseInfo> {
+  return apiFetch<DatabaseInfo>(
+    '/api/databases/switch',
+    {},
+    {
+      method: 'POST',
+      body: JSON.stringify({ path })
+    }
+  )
+}
+
 /** 单表结构详情（外键/索引/行数） */
 export function fetchTableInfo(name: string): Promise<TableInfo> {
   return apiFetch<TableInfo>(`/api/tables/${encodeURIComponent(name)}`)
@@ -63,6 +83,65 @@ export interface FetchRowsOptions {
   pageSize: number
   filters?: FilterCondition[]
   sort?: SortSpec | null
+}
+
+/** 只读查询（SQL 控制台） */
+export function runQuery(sql: string): Promise<QueryResult> {
+  return apiFetch<QueryResult>('/api/query', {}, { method: 'POST', body: JSON.stringify({ sql }) })
+}
+
+/** 自定义视图：列表 */
+export function fetchViews(): Promise<CustomView[]> {
+  return apiFetch<CustomView[]>('/api/views')
+}
+
+/** 自定义视图：新建 */
+export function createView(name: string, sql: string): Promise<CustomView> {
+  return apiFetch<CustomView>(
+    '/api/views',
+    {},
+    {
+      method: 'POST',
+      body: JSON.stringify({ name, sql })
+    }
+  )
+}
+
+/** 自定义视图：更新 */
+export function updateView(
+  id: number,
+  patch: { name?: string; sql?: string }
+): Promise<CustomView> {
+  return apiFetch<CustomView>(
+    `/api/views/${id}`,
+    {},
+    {
+      method: 'PUT',
+      body: JSON.stringify(patch)
+    }
+  )
+}
+
+/** 自定义视图：删除 */
+export function deleteView(id: number): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/views/${id}`, {}, { method: 'DELETE' })
+}
+
+/** SQL 编辑器草稿：读取（跨会话保留上次编辑内容） */
+export function fetchDraft(): Promise<{ sql: string }> {
+  return apiFetch<{ sql: string }>('/api/draft')
+}
+
+/** SQL 编辑器草稿：保存 */
+export function saveDraft(sql: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(
+    '/api/draft',
+    {},
+    {
+      method: 'PUT',
+      body: JSON.stringify({ sql })
+    }
+  )
 }
 
 /** 分页数据（可选按列过滤 / 排序） */
