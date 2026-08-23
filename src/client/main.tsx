@@ -1,6 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { ConfigProvider } from 'antd'
+import { App as AntdApp, ConfigProvider } from 'antd'
 import { HashRouter } from 'react-router'
 import App from '@/App'
 import { SchemasProvider } from '@/context/SchemasContext'
@@ -17,17 +17,20 @@ createRoot(document.getElementById('root')!).render(
         }
       }}
     >
-      {/* HashRouter：token 留在 hash 外的 ?t= 中，路由切换不触碰它；
-          且生产环境 node:http 静态托管无需 SPA fallback */}
-      <HashRouter>
-        {/* 表清单全局预取（App 与页面共享） */}
-        <SchemasProvider>
-          {/* 自定义视图全局状态（侧边栏菜单与查询页共享） */}
-          <ViewsProvider>
-            <App />
-          </ViewsProvider>
-        </SchemasProvider>
-      </HashRouter>
+      {/* App 组件：让 message/modal 等消费 ConfigProvider 上下文与主题（替代静态方法） */}
+      <AntdApp>
+        {/* HashRouter：token 留在 hash 外的 ?t= 中，路由切换不触碰它；
+            且生产环境 node:http 静态托管无需 SPA fallback */}
+        <HashRouter>
+          {/* 表清单全局预取（App 与页面共享） */}
+          <SchemasProvider>
+            {/* 自定义视图全局状态（侧边栏菜单与查询页共享） */}
+            <ViewsProvider>
+              <App />
+            </ViewsProvider>
+          </SchemasProvider>
+        </HashRouter>
+      </AntdApp>
     </ConfigProvider>
   </React.StrictMode>
 )

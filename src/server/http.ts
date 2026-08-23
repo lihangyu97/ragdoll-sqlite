@@ -6,7 +6,6 @@ import path from 'node:path'
 import {
   ApiError,
   handleDatabaseInfo,
-  handleOverview,
   handleQuery,
   handleRefresh,
   handleRows,
@@ -183,10 +182,6 @@ async function handleApi(
   try {
     if (pathname === '/api/tables') {
       sendJson(res, 200, handleTables(db))
-      return
-    }
-    if (pathname === '/api/overview') {
-      sendJson(res, 200, handleOverview(db))
       return
     }
     const rowsMatch = pathname.match(/^\/api\/tables\/([^/]+)\/rows$/)

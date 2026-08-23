@@ -19,7 +19,7 @@
     "build:server": "tsc -p tsconfig.server.json",
     "build:web": "vite build",
     "build": "pnpm run build:server && pnpm run build:web",
-    "test": "tsc -p tsconfig.test.json && node --test \"dist-test/**/*.test.js\"",
+    "test": "tsc -p tsconfig.test.json && node --test \"dist-test/**/*.test.js\" && vitest run",
     "start": "node dist/cli.js",
     "dev:web": "vite dev",
     "dev:server": "tsc -p tsconfig.server.json && node dist/cli.js --dev",
@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/react": "^16.3.2",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
@@ -49,9 +50,11 @@
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "happy-dom": "^20.11.6",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }

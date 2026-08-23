@@ -6,13 +6,13 @@ import {
   TableOutlined
 } from '@ant-design/icons'
 import {
+  App as AntdApp,
   Button,
   Card,
   Col,
   Empty,
   Input,
   List,
-  message,
   Modal,
   Row,
   Space,
@@ -44,6 +44,7 @@ function formatBytes(bytes: number): string {
  * - 表卡片墙：每张表/视图一张卡片（类型/字段数/行数），点击直达数据页
  */
 export default function HomePage() {
+  const { message } = AntdApp.useApp()
   const { schemas, refresh: refreshSchemas } = useSchemas()
   const navigate = useNavigate()
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null)
@@ -79,7 +80,7 @@ export default function HomePage() {
         setSwitching(false)
       }
     },
-    [switchPath, refreshSchemas]
+    [switchPath, refreshSchemas, message]
   )
 
   /** 复制当前库路径 */
@@ -91,7 +92,7 @@ export default function HomePage() {
     } catch {
       message.warning('复制失败，请手动复制')
     }
-  }, [dbInfo])
+  }, [dbInfo, message])
 
   if (schemas === null) return null
 

@@ -1,5 +1,5 @@
 import { DeleteOutlined, PlayCircleOutlined, SaveOutlined } from '@ant-design/icons'
-import { Alert, Button, Input, message, Space, Spin, Tag, Typography } from 'antd'
+import { App as AntdApp, Alert, Button, Input, Space, Spin, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { CustomView, QueryResult } from '@shared/types'
@@ -17,6 +17,7 @@ interface CustomViewPanelProps {
  * 展示视图的 SQL 与执行结果表；可编辑视图名与 SQL（CodeMirror 编辑器）、删除视图。
  */
 export default function CustomViewPanel({ view }: CustomViewPanelProps) {
+  const { message } = AntdApp.useApp()
   const { update, remove } = useViews()
   const navigate = useNavigate()
   const [name, setName] = useState(view.name)

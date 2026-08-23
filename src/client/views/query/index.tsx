@@ -1,5 +1,5 @@
 import { CaretRightOutlined, SaveOutlined } from '@ant-design/icons'
-import { Alert, Button, Empty, Input, message, Modal, Space, Spin, Typography } from 'antd'
+import { App as AntdApp, Alert, Button, Empty, Input, Modal, Space, Spin, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { QueryResult } from '@shared/types'
 import { fetchDraft, runQuery, saveDraft } from '@/api'
@@ -21,6 +21,7 @@ const DRAFT_SAVE_DEBOUNCE_MS = 500
  * - 保存为视图：把当前 SQL 存为自定义视图（管理在「自定义视图」页）
  */
 export default function QueryPage() {
+  const { message } = AntdApp.useApp()
   const { schemas } = useSchemas()
   const { create } = useViews()
   const editorRef = useRef<SqlEditorHandle>(null)
@@ -99,7 +100,7 @@ export default function QueryPage() {
     } catch (err) {
       message.error((err as Error).message)
     }
-  }, [viewName, sqlText, create])
+  }, [viewName, sqlText, create, message])
 
   return (
     <div className="query-page">
