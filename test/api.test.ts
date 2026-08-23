@@ -104,6 +104,68 @@ describe('HTTP API（真实服务器）', () => {
     assert.equal(data.rows[0].id, 1)
   })
 
+  it('POST /api/query：只读 SELECT 返回列与行', async () => {
+    const res = await fetch(`${base()}/api/query?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: 'SELECT id, name FROM users ORDER BY id' })
+    })
+    assert.equal(res.status, 200)
+    const data = (await res.json()) as {
+      columns: string[]
+      rows: Array<Record<string, unknown>>
+      total: number
+      truncated: boolean
+    }
+    assert.deepEqual(data.columns, ['id', 'name'])
+    assert.equal(data.total, 2)
+    assert.equal(data.rows.length, 2)
+    assert.equal(data.rows[0].id, 1)
+    assert.equal(data.truncated, false)
+  })
+
+  it('POST /api/query：拒绝写语句与 PRAGMA（只读白名单）', async () => {
+    const post = (sql: string) =>
+      fetch(`${base()}/api/query?t=${token}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sql })
+      })
+    for (const sql of [
+      'DELETE FROM users',
+      'INSERT INTO users VALUES (1)',
+      'PRAGMA journal_mode',
+      'ATTACH DATABASE'
+    ]) {
+      const res = await post(sql)
+      assert.equal(res.status, 400, `应拒绝: ${sql}`)
+    }
+  })
+
+  it('POST /api/query：语法错误返回 400', async () => {
+    const res = await fetch(`${base()}/api/query?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: 'SELECT FROM' })
+    })
+    assert.equal(res.status, 400)
+  })
+
+  it('POST /api/query：超过 1000 行时截断并标记 truncated', async () => {
+    const res = await fetch(`${base()}/api/query?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sql: 'WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM cnt WHERE x < 2000) SELECT x FROM cnt'
+      })
+    })
+    assert.equal(res.status, 200)
+    const data = (await res.json()) as { rows: unknown[]; total: number; truncated: boolean }
+    assert.equal(data.total, 2000)
+    assert.equal(data.rows.length, 1000)
+    assert.equal(data.truncated, true)
+  })
+
   it('filter 参数：过滤后返回正确 total 与行', async () => {
     const filter = encodeURIComponent(JSON.stringify([{ column: 'id', op: 'eq', value: 2 }]))
     const res = await fetch(`${base()}/api/tables/users/rows?t=${token}&filter=${filter}`)

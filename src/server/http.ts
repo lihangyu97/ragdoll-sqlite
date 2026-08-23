@@ -6,6 +6,7 @@ import path from 'node:path'
 import {
   ApiError,
   handleOverview,
+  handleQuery,
   handleRefresh,
   handleRows,
   handleTableInfo,
@@ -93,6 +94,25 @@ async function handleRequest(
       sendJson(res, 200, { ok: true })
       return
     }
+    // 只读查询（SQL 控制台）
+    if (pathname === '/api/query') {
+      if (req.method !== 'POST') {
+        sendJson(res, 405, { error: 'Method Not Allowed' })
+        return
+      }
+      const body = await readJsonBody(req)
+      const sql = typeof body?.sql === 'string' ? body.sql : ''
+      try {
+        sendJson(res, 200, handleQuery(options.db, sql))
+      } catch (err) {
+        if (err instanceof ApiError) {
+          sendJson(res, err.status, { error: err.message })
+          return
+        }
+        throw err
+      }
+      return
+    }
     await handleApi(options.db, pathname, url, res)
     return
   }
@@ -174,6 +194,29 @@ async function serveStatic(webDir: string, pathname: string, res: ServerResponse
   } catch {
     sendJson(res, 404, { error: 'Not Found' })
   }
+}
+
+/** 读取并解析 JSON 请求体（带大小上限，防滥用） */
+function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown> | null> {
+  return new Promise((resolve, reject) => {
+    let data = ''
+    req.on('data', chunk => {
+      data += chunk
+      if (data.length > 1_000_000) {
+        reject(new Error('请求体过大'))
+        req.destroy()
+      }
+    })
+    req.on('end', () => {
+      if (!data) return resolve(null)
+      try {
+        resolve(JSON.parse(data) as Record<string, unknown>)
+      } catch {
+        resolve(null)
+      }
+    })
+    req.on('error', reject)
+  })
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {

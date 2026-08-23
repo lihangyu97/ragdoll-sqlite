@@ -5,6 +5,7 @@
 import type {
   FilterCondition,
   Overview,
+  QueryResult,
   RowsResult,
   SortSpec,
   TableInfo,
@@ -63,6 +64,11 @@ export interface FetchRowsOptions {
   pageSize: number
   filters?: FilterCondition[]
   sort?: SortSpec | null
+}
+
+/** 只读查询（SQL 控制台） */
+export function runQuery(sql: string): Promise<QueryResult> {
+  return apiFetch<QueryResult>('/api/query', {}, { method: 'POST', body: JSON.stringify({ sql }) })
 }
 
 /** 分页数据（可选按列过滤 / 排序） */

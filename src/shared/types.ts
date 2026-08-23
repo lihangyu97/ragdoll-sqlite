@@ -98,3 +98,12 @@ export interface Overview {
   tables: OverviewTable[]
   totalRows: number
 }
+
+/** 只读查询结果（SQL 控制台） */
+export interface QueryResult {
+  columns: string[]
+  rows: Record<string, unknown>[]
+  /** 查询实际返回的总行数（可能大于 rows.length，超上限时截断） */
+  total: number
+  truncated: boolean
+}

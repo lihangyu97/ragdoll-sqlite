@@ -1,1 +1,28 @@
-/* 查询页（预留 SQL 编辑器）专属样式 */
+/* 查询页（SQL 控制台）专属样式 */
+
+.query-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.query-editor {
+  margin-bottom: 12px;
+}
+
+/* 工具栏紧贴编辑器 */
+.query-toolbar {
+  margin-top: 8px;
+}
+
+.query-result {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.query-result-meta {
+  margin-bottom: 8px;
+}

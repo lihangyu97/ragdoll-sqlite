@@ -6,6 +6,7 @@ import type {
   ForeignKeyInfo,
   IndexInfo,
   Overview,
+  QueryResult,
   RowsResult,
   SortSpec,
   TableEntry,
@@ -15,8 +16,13 @@ import type {
 
 export const MAX_PAGE_SIZE = 50
 export const DEFAULT_PAGE_SIZE = 10
+/** SQL 控制台单次查询结果行数上限（防大结果集阻塞，超限截断） */
+export const MAX_QUERY_ROWS = 1000
 /** 表数超过该值时，/api/tables 不再预取全部字段（由客户端按需加载，避免启动慢） */
 export const SCHEMA_PREFETCH_THRESHOLD = 50
+
+/** 只读查询允许的语句前缀（拒绝 PRAGMA / 写语句，保住只读定位） */
+const READONLY_SQL_PREFIX = /^(SELECT|WITH|EXPLAIN|VALUES)\b/i
 
 /** SQL 标识符双引号转义（表名在白名单校验后才插值，见 requireTable） */
 function quoteIdent(name: string): string {
@@ -77,6 +83,32 @@ export class SqliteDb {
       dbSizeBytes: statSync(this.filePath).size,
       tables,
       totalRows: tables.reduce((sum, t) => sum + t.rowCount, 0)
+    }
+  }
+
+  /**
+   * 只读查询（SQL 控制台）：仅允许 SELECT/WITH/EXPLAIN/VALUES 前缀，
+   * better-sqlite3 单语句执行（天然防多语句）；结果序列化 + 行数截断。
+   */
+  query(sql: string): QueryResult {
+    const trimmed = sql.trim()
+    if (!trimmed) throw new Error('SQL 不能为空')
+    if (!READONLY_SQL_PREFIX.test(trimmed)) {
+      throw new Error('仅支持只读查询（SELECT / WITH / EXPLAIN / VALUES 开头）')
+    }
+    const stmt = this.db.prepare(trimmed)
+    const all = stmt.all() as Record<string, unknown>[]
+    const limited = all.slice(0, MAX_QUERY_ROWS)
+    return {
+      columns: stmt.columns().map(c => c.name),
+      rows: limited.map((r, i) => {
+        const out: Record<string, unknown> = {}
+        for (const [k, v] of Object.entries(r)) out[k] = serializeValue(v)
+        out.__row = i + 1
+        return out
+      }),
+      total: all.length,
+      truncated: all.length > MAX_QUERY_ROWS
     }
   }
 
