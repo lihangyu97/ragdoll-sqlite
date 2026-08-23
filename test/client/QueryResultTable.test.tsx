@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { QueryResult } from '@shared/types'
-import QueryResultTable from './QueryResultTable'
+import QueryResultTable from '@/components/QueryResultTable'
 
 const result: QueryResult = {
   columns: ['id', 'name', 'avatar'],

@@ -101,7 +101,7 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 │   │           ├── CustomViewPanel.tsx  # 自定义视图页（SQL + 结果 + 编辑/删除）
 │   │           └── TableView/   # 表浏览组件（私有）：index.tsx + components/ + columnUtils.ts
 │   └── shared/             # 前后端共享：types.ts + constants.ts
-└── test/                   # 服务端测试（db.test.ts / api.test.ts）；前端组件测试就近放于 src/**/*.test.tsx
+└── test/                   # 服务端测试（db.test.ts / api.test.ts）+ 前端组件测试（client/，vitest）
 ```
 
 ## API

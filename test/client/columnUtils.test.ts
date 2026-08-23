@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ColumnInfo } from '@shared/types'
-import { isQueryableColumn, queryableColumns } from './columnUtils'
+import { isQueryableColumn, queryableColumns } from '@/views/table/TableView/columnUtils'
 
 const col = (name: string, type: string): ColumnInfo => ({
   cid: 0,

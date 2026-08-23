@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import CellValue, { cellFullText, isBlobValue } from './CellValue'
+import CellValue, { cellFullText, isBlobValue } from '@/components/CellValue'
 
 describe('CellValue', () => {
   it('NULL/undefined 渲染为斜体 NULL', () => {

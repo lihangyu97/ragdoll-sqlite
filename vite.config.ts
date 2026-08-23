@@ -23,8 +23,8 @@ export default defineConfig({
     }
   },
   test: {
-    // 前端组件测试（服务端测试仍走 node:test）
+    // 前端组件测试（服务端测试仍走 node:test，见 test/*.test.ts）
     environment: 'happy-dom',
-    include: ['src/**/*.test.{ts,tsx}']
+    include: ['test/client/**/*.test.{ts,tsx}']
   }
 })
