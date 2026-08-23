@@ -45,8 +45,8 @@ export function serializeValue(value: unknown): unknown {
 
 /** 只读 SQLite 连接封装：打开、探活、元数据、分页查询 */
 export class SqliteDb {
-  private readonly db: Database.Database
-  private readonly filePath: string
+  private db: Database.Database
+  private filePath: string
   /** 行数缓存：只读打开，行数不会自行变化，首次 count(*) 后复用 */
   private readonly rowCountCache = new Map<string, number>()
 
@@ -74,6 +74,20 @@ export class SqliteDb {
       throw new Error(`不是有效的 SQLite 数据库文件`, { cause: err })
     }
     return new SqliteDb(db, path)
+  }
+
+  /** 当前库文件路径（主页展示用） */
+  get path(): string {
+    return this.filePath
+  }
+
+  /** 切换数据库：关闭当前连接，只读打开新库（完整校验），清空行数缓存 */
+  reopen(path: string): void {
+    const next = SqliteDb.open(path)
+    this.db.close()
+    this.db = next.db
+    this.filePath = next.filePath
+    this.rowCountCache.clear()
   }
 
   /** 库总览：每表行数（复用缓存）+ 总行数 + 库文件大小（主页 Dashboard 用） */

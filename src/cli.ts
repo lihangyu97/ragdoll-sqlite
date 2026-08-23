@@ -122,6 +122,7 @@ async function main(): Promise<void> {
   let views = null
   try {
     views = ViewsStore.open()
+    views.addRecentDatabase(dbPath) // 初始库也记入最近打开
   } catch (err) {
     console.warn(`警告: 应用存储打开失败，自定义视图功能不可用（${(err as Error).message}）`)
   }

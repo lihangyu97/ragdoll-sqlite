@@ -5,10 +5,12 @@ import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import {
   ApiError,
+  handleDatabaseInfo,
   handleOverview,
   handleQuery,
   handleRefresh,
   handleRows,
+  handleSwitchDatabase,
   handleTableInfo,
   handleTables
 } from './api.js'
@@ -85,6 +87,34 @@ async function handleRequest(
   if (pathname.startsWith('/api/')) {
     if (!options.dev && url.searchParams.get('t') !== token) {
       sendJson(res, 403, { error: '无效的访问令牌' })
+      return
+    }
+    // 当前数据库信息 + 最近打开（主页展示/切换）
+    if (pathname === '/api/databases') {
+      if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'Method Not Allowed' })
+        return
+      }
+      sendJson(res, 200, handleDatabaseInfo(options.db, options.views ?? null))
+      return
+    }
+    // 切换数据库（只读打开新库）
+    if (pathname === '/api/databases/switch') {
+      if (req.method !== 'POST') {
+        sendJson(res, 405, { error: 'Method Not Allowed' })
+        return
+      }
+      const body = await readJsonBody(req)
+      const path = typeof body?.path === 'string' ? body.path : ''
+      try {
+        sendJson(res, 200, handleSwitchDatabase(options.db, options.views ?? null, path))
+      } catch (err) {
+        if (err instanceof ApiError) {
+          sendJson(res, err.status, { error: err.message })
+          return
+        }
+        throw err
+      }
       return
     }
     // 刷新：清空服务端行数缓存（外部可能改过库）

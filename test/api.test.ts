@@ -349,6 +349,62 @@ describe('HTTP API（真实服务器）', () => {
     assert.equal((await put('SELECT 1')).status, 200)
     assert.equal(await get(), 'SELECT 1')
   })
+
+  it('数据库信息与切换：当前库展示、切换后表清单/最近打开更新', async () => {
+    // 第二个库
+    const secondPath = path.join(dir, 'second.db')
+    const second = new Database(secondPath)
+    second.exec('CREATE TABLE other (id INTEGER PRIMARY KEY)')
+    second.close()
+
+    // 当前信息
+    const info = (await (await fetch(`${base()}/api/databases?t=${token}`)).json()) as {
+      current: { path: string; tableCount: number; dbSizeBytes: number }
+      recent: Array<{ path: string }>
+    }
+    assert.equal(info.current.path, dbPath)
+    assert.equal(info.current.tableCount, 3)
+    assert.ok(info.current.dbSizeBytes > 0)
+    assert.ok(Array.isArray(info.recent))
+
+    // 切换到第二个库
+    const sw = await fetch(`${base()}/api/databases/switch?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: secondPath })
+    })
+    assert.equal(sw.status, 200)
+    const swData = (await sw.json()) as { current: { path: string; tableCount: number } }
+    assert.equal(swData.current.path, secondPath)
+    assert.equal(swData.current.tableCount, 1)
+
+    // 表清单接口反映新库
+    const tables = (await (await fetch(`${base()}/api/tables?t=${token}`)).json()) as Array<{
+      name: string
+    }>
+    assert.equal(tables.length, 1)
+    assert.equal(tables[0].name, 'other')
+
+    // 最近打开包含新路径
+    const info2 = (await (await fetch(`${base()}/api/databases?t=${token}`)).json()) as {
+      recent: Array<{ path: string }>
+    }
+    assert.ok(info2.recent.some(r => r.path === secondPath))
+
+    // 空路径 / 非法路径 400
+    const empty = await fetch(`${base()}/api/databases/switch?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '' })
+    })
+    assert.equal(empty.status, 400)
+    const bad = await fetch(`${base()}/api/databases/switch?t=${token}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: path.join(dir, 'nope.db') })
+    })
+    assert.equal(bad.status, 400)
+  })
 })
 
 describe('db.rows 内部钳制', () => {

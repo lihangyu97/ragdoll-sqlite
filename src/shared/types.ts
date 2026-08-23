@@ -116,3 +116,23 @@ export interface CustomView {
   createdAt: string
   updatedAt: string
 }
+
+/** 最近打开的数据库 */
+export interface RecentDatabase {
+  path: string
+  openedAt: string
+}
+
+/** 当前数据库信息 + 最近打开列表（主页展示/切换用） */
+export interface DatabaseInfo {
+  current: {
+    path: string
+    dbSizeBytes: number
+    tableCount: number
+    viewCount: number
+    totalRows: number
+    /** 每表行数（复用行数缓存） */
+    tables: OverviewTable[]
+  } | null
+  recent: RecentDatabase[]
+}

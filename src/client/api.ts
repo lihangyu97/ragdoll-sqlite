@@ -4,6 +4,7 @@
  */
 import type {
   CustomView,
+  DatabaseInfo,
   FilterCondition,
   Overview,
   QueryResult,
@@ -53,6 +54,23 @@ export function fetchTables(): Promise<TableSchemaEntry[]> {
 /** 库总览（主页 Dashboard：每表行数 + 总行数 + 库文件大小） */
 export function fetchOverview(): Promise<Overview> {
   return apiFetch<Overview>('/api/overview')
+}
+
+/** 当前数据库信息 + 最近打开列表（主页展示/切换用） */
+export function fetchDatabases(): Promise<DatabaseInfo> {
+  return apiFetch<DatabaseInfo>('/api/databases')
+}
+
+/** 切换数据库（只读打开新库），返回切换后的信息 */
+export function switchDatabase(path: string): Promise<DatabaseInfo> {
+  return apiFetch<DatabaseInfo>(
+    '/api/databases/switch',
+    {},
+    {
+      method: 'POST',
+      body: JSON.stringify({ path })
+    }
+  )
 }
 
 /** 单表结构详情（外键/索引/行数） */

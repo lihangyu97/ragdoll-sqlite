@@ -45,8 +45,33 @@ export class ViewsStore {
         sql TEXT NOT NULL DEFAULT '',
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
+      -- 最近打开的数据库（切换/启动时记录，供主页一键切换）
+      CREATE TABLE IF NOT EXISTS recent_databases (
+        path TEXT PRIMARY KEY,
+        opened_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
     `)
     return new ViewsStore(db)
+  }
+
+  /** 最近打开的数据库（最近在前，最多 20 条） */
+  listRecentDatabases(): Array<{ path: string; openedAt: string }> {
+    return this.db
+      .prepare(
+        `SELECT path, opened_at AS openedAt FROM recent_databases
+         ORDER BY opened_at DESC LIMIT 20`
+      )
+      .all() as Array<{ path: string; openedAt: string }>
+  }
+
+  /** 记录一次数据库打开（同路径刷新时间） */
+  addRecentDatabase(path: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO recent_databases (path, opened_at) VALUES (?, datetime('now'))
+         ON CONFLICT(path) DO UPDATE SET opened_at = excluded.opened_at`
+      )
+      .run(path)
   }
 
   /** SQL 编辑器草稿（无记录时返回空串） */
