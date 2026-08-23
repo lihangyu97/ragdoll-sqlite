@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import SiderMenu from '@/components/SiderMenu'
 import { NAV_ROUTES } from '@/routes'
-import { useSchemas } from '@/SchemasContext'
+import { useSchemas } from '@/context/SchemasContext'
 
 const { Sider, Content } = Layout
 
@@ -60,8 +60,8 @@ export default function App() {
         <Routes>
           {/* 默认进入主页 */}
           <Route path="/" element={<Navigate to="/home" replace />} />
-          {/* 全部页面路由由 NAV_ROUTES 生成 */}
-          {NAV_ROUTES.map(r => (
+          {/* 全部页面路由由 NAV_ROUTES 生成（route: false 的仅菜单项不生成路由） */}
+          {NAV_ROUTES.filter(r => r.route !== false).map(r => (
             <Route key={r.path} path={r.path} element={r.element} />
           ))}
           {/* 未知路径兜底到表数据页 */}

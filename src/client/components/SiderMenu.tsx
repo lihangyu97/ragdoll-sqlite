@@ -2,7 +2,8 @@ import { Menu } from 'antd'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import type { TableEntry } from '@shared/types'
-import { NAV_ROUTES, TABLE_KEY_PREFIX } from '@/routes'
+import { NAV_ROUTES, TABLE_KEY_PREFIX, VIEW_KEY_PREFIX } from '@/routes'
+import { useViews } from '@/context/ViewsContext'
 
 interface SiderMenuProps {
   tables: TableEntry[]
@@ -17,6 +18,7 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
+  const { views } = useViews()
   // 受控展开：进入表数据页时确保「表与视图」子菜单展开（用户手动收起后仍会补展开）
   const [openKeys, setOpenKeys] = useState<string[]>([])
 
@@ -24,7 +26,7 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
     if (location.pathname === '/table') {
       // 微任务中 setState，规避 react-hooks/set-state-in-effect 规则
       queueMicrotask(() => {
-        setOpenKeys(prev => [...prev, 'tables'])
+        setOpenKeys(prev => (prev.includes('tables') ? prev : [...prev, 'tables']))
       })
     }
   }, [location.pathname])
@@ -38,6 +40,8 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
         ? ['tables']
         : [location.pathname]
 
+  const menuContext = { tables, views: views ?? [] }
+
   return (
     <Menu
       theme="light"
@@ -49,13 +53,16 @@ export default function SiderMenu({ tables }: SiderMenuProps) {
         if (key.startsWith(TABLE_KEY_PREFIX)) {
           // 表名走查询参数（encodeURIComponent 防表名含 & / # 等特殊字符）
           navigate(`/table?table=${encodeURIComponent(key.slice(TABLE_KEY_PREFIX.length))}`)
-        } else if (key !== 'tables') {
+        } else if (key.startsWith(VIEW_KEY_PREFIX)) {
+          // 自定义视图：与表/视图共用 /table 路由，?viewId= 区分
+          navigate(`/table?viewId=${key.slice(VIEW_KEY_PREFIX.length)}`)
+        } else if (key !== 'tables' && key !== 'custom-views') {
           // 导航项 key 即路由 path
           navigate(key)
         }
       }}
       items={NAV_ROUTES.map(r =>
-        r.menuRender ? r.menuRender({ tables }) : { key: r.path, icon: r.icon, label: r.label }
+        r.menuRender ? r.menuRender(menuContext) : { key: r.path, icon: r.icon, label: r.label }
       )}
     />
   )

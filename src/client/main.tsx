@@ -3,7 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { ConfigProvider } from 'antd'
 import { HashRouter } from 'react-router'
 import App from '@/App'
-import { SchemasProvider } from '@/SchemasContext'
+import { SchemasProvider } from '@/context/SchemasContext'
+import { ViewsProvider } from '@/context/ViewsContext'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -21,7 +22,10 @@ createRoot(document.getElementById('root')!).render(
       <HashRouter>
         {/* 表清单全局预取（App 与页面共享） */}
         <SchemasProvider>
-          <App />
+          {/* 自定义视图全局状态（侧边栏菜单与查询页共享） */}
+          <ViewsProvider>
+            <App />
+          </ViewsProvider>
         </SchemasProvider>
       </HashRouter>
     </ConfigProvider>

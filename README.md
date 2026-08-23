@@ -84,7 +84,7 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 │   ├── client/             # 前端 SPA（React 19 + antd v6 + react-router）
 │   │   ├── App.tsx          # 布局组装 + 全局加载态 + 路由表（由 NAV_ROUTES 生成）
 │   │   ├── routes.tsx       # 顶层路由配置（单源：Routes 与 SiderMenu 共用）
-│   │   ├── SchemasContext.tsx  # 表清单全局预取（SchemasProvider + useSchemas）
+│   │   ├── context/         # 全局 Context：SchemasContext（表清单预取）/ ViewsContext（自定义视图）
 │   │   ├── api.ts           # API 层：业务函数（fetchTables / fetchTableInfo / fetchRows / refreshRowCountCache）
 │   │   ├── hooks/           # 数据获取 hooks：useTableData（详情/分页/序号守卫）
 │   │   ├── components/      # 全局共享组件：SiderMenu（侧边栏菜单）

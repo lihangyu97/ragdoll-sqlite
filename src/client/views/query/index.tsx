@@ -1,73 +1,39 @@
-import { CaretRightOutlined } from '@ant-design/icons'
-import { sql } from '@codemirror/lang-sql'
-import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete'
-import { Prec } from '@codemirror/state'
-import { keymap, type EditorView } from '@codemirror/view'
-import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
-import { Alert, Button, Empty, Space, Spin, Table, Tag, Typography } from 'antd'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CaretRightOutlined, SaveOutlined } from '@ant-design/icons'
+import { Alert, Button, Empty, Input, message, Modal, Space, Spin, Typography } from 'antd'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { QueryResult } from '@shared/types'
 import { fetchDraft, runQuery, saveDraft } from '@/api'
-import CellValue from '@/components/CellValue'
-import { useSchemas } from '@/SchemasContext'
+import QueryResultTable from '@/components/QueryResultTable'
+import SqlEditor, { type SqlEditorHandle } from '@/components/SqlEditor'
+import { useSchemas } from '@/context/SchemasContext'
+import { useViews } from '@/context/ViewsContext'
 import './index.css'
-
-/**
- * 表名自动补全源：FROM/JOIN/UPDATE/INTO 后输入时直接弹表名。
- * （lang-sql 的 schema 补全在表名空位置不自动触发，仅 Ctrl+Space 显式触发，这里补上自动触发）
- */
-function tableCompletionSource(
-  tableNames: string[]
-): (context: CompletionContext) => CompletionResult | null {
-  return context => {
-    const before = context.state.sliceDoc(Math.max(0, context.pos - 60), context.pos)
-    if (!/(?:FROM|JOIN|UPDATE|INTO|TABLE)\s+[\w"`]*$/i.test(before)) return null
-    const word = (before.match(/[\w"`]+$/) ?? [''])[0].replace(/["`]/g, '')
-    const options = tableNames
-      .filter(t => t.startsWith(word))
-      .map(t => ({ label: t, type: 'type' }))
-    if (options.length === 0) return null
-    return { from: context.pos - word.length, options }
-  }
-}
 
 /** 草稿防抖保存间隔（避免每次按键都写 views.db） */
 const DRAFT_SAVE_DEBOUNCE_MS = 500
 
 /**
  * 查询页（SQL 控制台）：
- * - 上方 CodeMirror 编辑器（SQL 高亮 + 表/列补全，数据源来自表清单）
+ * - 上方 SqlEditor（CodeMirror：高亮 + 表/列补全 + 自动表名补全）
  * - 执行：按钮或 Cmd/Ctrl+Enter，取**选中文本**（无选区则取光标所在行）
  * - 下方结果表（前端分页，NULL/BLOB 安全展示，最多 1000 行）
  * - 草稿持久化：内容防抖保存到服务端 views.db（跨会话/重启不丢）
+ * - 保存为视图：把当前 SQL 存为自定义视图（管理在「自定义视图」页）
  */
 export default function QueryPage() {
   const { schemas } = useSchemas()
-  const editorRef = useRef<ReactCodeMirrorRef>(null)
+  const { create } = useViews()
+  const editorRef = useRef<SqlEditorHandle>(null)
   const saveTimer = useRef<number | null>(null)
   const [sqlText, setSqlText] = useState('')
   const [result, setResult] = useState<QueryResult | null>(null)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [viewName, setViewName] = useState('')
 
-  // 补全 schema：表名 → 列名数组（lang-sql 6.x 的 SQLNamespace 递归结构，叶子为列）
-  const sqlSchema = useMemo(() => {
-    const schema: Record<string, string[]> = {}
-    for (const s of schemas ?? []) {
-      schema[s.name] = s.columns.map(c => c.name)
-    }
-    return schema
-  }, [schemas])
-
-  // 表名列表（自动补全源用）
-  const tableNames = useMemo(() => (schemas ?? []).map(s => s.name), [schemas])
-
-  /** 在指定编辑器视图上执行选区/当前行 SQL（keymap 与按钮共用，不依赖 ref） */
-  const executeView = useCallback((view: EditorView) => {
-    const { state } = view
-    const { from, to } = state.selection.main
-    // 有选区 → 执行选中的 SQL；无选区 → 执行光标所在行
-    const sql = from === to ? state.doc.lineAt(from).text : state.sliceDoc(from, to)
+  /** 执行一段完整 SQL */
+  const runSql = useCallback((sql: string) => {
     const trimmed = sql.trim()
     if (!trimmed) return
     setRunning(true)
@@ -80,32 +46,6 @@ export default function QueryPage() {
       })
       .finally(() => setRunning(false))
   }, [])
-
-  const execute = useCallback(() => {
-    const view = editorRef.current?.view
-    if (view) executeView(view)
-  }, [executeView])
-
-  const extensions = useMemo(() => {
-    const sqlExt = sql({ schema: sqlSchema })
-    return [
-      sqlExt,
-      // 输入 FROM/JOIN 等后自动弹表名（优先于 lang-sql 默认源）
-      Prec.highest(sqlExt.language.data.of({ autocomplete: tableCompletionSource(tableNames) })),
-      // Cmd/Ctrl+Enter 执行（Mod-Enter），Prec.highest 防止其他 keymap 抢占
-      Prec.highest(
-        keymap.of([
-          {
-            key: 'Mod-Enter',
-            run: view => {
-              executeView(view)
-              return true
-            }
-          }
-        ])
-      )
-    ]
-  }, [sqlSchema, tableNames, executeView])
 
   // 初始化编辑器内容：优先服务端草稿（跨会话保留），无草稿给一行示例 SQL
   useEffect(() => {
@@ -144,26 +84,22 @@ export default function QueryPage() {
     }, DRAFT_SAVE_DEBOUNCE_MS)
   }, [])
 
-  const columns = useMemo(
-    () => [
-      {
-        title: '#',
-        key: '__row',
-        width: 60,
-        render: (_: unknown, r: Record<string, unknown>) => (
-          <span className="cell-number">{String(r.__row)}</span>
-        )
-      },
-      ...(result?.columns ?? []).map(c => ({
-        title: c,
-        dataIndex: c,
-        key: c,
-        ellipsis: true,
-        render: (v: unknown) => <CellValue value={v} />
-      }))
-    ],
-    [result]
-  )
+  /** 保存当前 SQL 为自定义视图 */
+  const handleSave = useCallback(async () => {
+    const name = viewName.trim()
+    if (!name) {
+      message.warning('请输入视图名称')
+      return
+    }
+    try {
+      await create(name, sqlText)
+      message.success('视图已保存，可在左侧「自定义视图」中查看')
+      setSaveOpen(false)
+      setViewName('')
+    } catch (err) {
+      message.error((err as Error).message)
+    }
+  }, [viewName, sqlText, create])
 
   return (
     <div className="query-page">
@@ -171,23 +107,27 @@ export default function QueryPage() {
         查询
       </Typography.Title>
       <div className="query-editor">
-        <CodeMirror
-          ref={editorRef}
-          value={sqlText}
-          height="200px"
-          extensions={extensions}
-          onChange={handleSqlChange}
-        />
+        <SqlEditor ref={editorRef} value={sqlText} onChange={handleSqlChange} onRun={runSql} />
         <div className="query-toolbar">
-          <Space size="middle">
+          <Space size="middle" wrap>
             <Button
               type="primary"
               size="small"
               icon={<CaretRightOutlined />}
               loading={running}
-              onClick={execute}
+              onClick={() => editorRef.current?.run()}
             >
               执行
+            </Button>
+            <Button
+              size="small"
+              icon={<SaveOutlined />}
+              onClick={() => {
+                setViewName('')
+                setSaveOpen(true)
+              }}
+            >
+              保存为视图
             </Button>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               执行选中行 / 光标所在行（⌘/Ctrl + Enter）
@@ -212,30 +152,29 @@ export default function QueryPage() {
             <Spin size="large" />
           </div>
         ) : result ? (
-          <>
-            <div className="query-result-meta">
-              <Space size="middle" wrap>
-                <Tag color="blue">{result.total.toLocaleString()} 行</Tag>
-                {result.truncated && <Tag color="orange">超过 1000 行，仅显示前 1000 行</Tag>}
-              </Space>
-            </div>
-            <Table<Record<string, unknown>>
-              size="small"
-              columns={columns}
-              dataSource={result.rows}
-              rowKey="__row"
-              scroll={{ x: 'max-content' }}
-              pagination={{
-                size: 'medium',
-                showSizeChanger: true,
-                showTotal: t => `共 ${t.toLocaleString()} 行`
-              }}
-            />
-          </>
+          <QueryResultTable result={result} />
         ) : (
           <Empty description="执行 SQL 后在此预览结果" style={{ marginTop: 40 }} />
         )}
       </div>
+
+      <Modal
+        title="保存为视图"
+        open={saveOpen}
+        onCancel={() => setSaveOpen(false)}
+        onOk={handleSave}
+        okText="保存"
+        destroyOnHidden
+      >
+        <Input
+          autoFocus
+          placeholder="视图名称（左侧「自定义视图」菜单可见，可后续编辑）"
+          value={viewName}
+          onChange={e => setViewName(e.target.value)}
+          onPressEnter={handleSave}
+          maxLength={50}
+        />
+      </Modal>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { Overview } from '@shared/types'
 import { fetchOverview } from '@/api'
-import { useSchemas } from '@/SchemasContext'
+import { useSchemas } from '@/context/SchemasContext'
 import './index.css'
 
 /** 文件大小人性化 */
