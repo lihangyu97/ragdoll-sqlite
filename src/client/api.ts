@@ -3,6 +3,7 @@
  * 页面与 hooks 直接调用这里的函数，不直接拼 URL / 操作 fetch。
  */
 import type {
+  CustomView,
   FilterCondition,
   Overview,
   QueryResult,
@@ -69,6 +70,60 @@ export interface FetchRowsOptions {
 /** 只读查询（SQL 控制台） */
 export function runQuery(sql: string): Promise<QueryResult> {
   return apiFetch<QueryResult>('/api/query', {}, { method: 'POST', body: JSON.stringify({ sql }) })
+}
+
+/** 自定义视图：列表 */
+export function fetchViews(): Promise<CustomView[]> {
+  return apiFetch<CustomView[]>('/api/views')
+}
+
+/** 自定义视图：新建 */
+export function createView(name: string, sql: string): Promise<CustomView> {
+  return apiFetch<CustomView>(
+    '/api/views',
+    {},
+    {
+      method: 'POST',
+      body: JSON.stringify({ name, sql })
+    }
+  )
+}
+
+/** 自定义视图：更新 */
+export function updateView(
+  id: number,
+  patch: { name?: string; sql?: string }
+): Promise<CustomView> {
+  return apiFetch<CustomView>(
+    `/api/views/${id}`,
+    {},
+    {
+      method: 'PUT',
+      body: JSON.stringify(patch)
+    }
+  )
+}
+
+/** 自定义视图：删除 */
+export function deleteView(id: number): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/views/${id}`, {}, { method: 'DELETE' })
+}
+
+/** SQL 编辑器草稿：读取（跨会话保留上次编辑内容） */
+export function fetchDraft(): Promise<{ sql: string }> {
+  return apiFetch<{ sql: string }>('/api/draft')
+}
+
+/** SQL 编辑器草稿：保存 */
+export function saveDraft(sql: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(
+    '/api/draft',
+    {},
+    {
+      method: 'PUT',
+      body: JSON.stringify({ sql })
+    }
+  )
 }
 
 /** 分页数据（可选按列过滤 / 排序） */

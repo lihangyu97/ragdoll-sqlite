@@ -7,22 +7,10 @@ import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { Alert, Button, Empty, Space, Spin, Table, Tag, Typography } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueryResult } from '@shared/types'
-import { runQuery } from '@/api'
+import { fetchDraft, runQuery, saveDraft } from '@/api'
 import CellValue from '@/components/CellValue'
 import { useSchemas } from '@/SchemasContext'
 import './index.css'
-
-/** SQL 草稿的 localStorage key（同一会话内刷新/切页恢复用） */
-const DRAFT_KEY = 'ragdoll.sqlDraft'
-
-/** 安全读写 localStorage（隐私模式/配额异常时静默降级） */
-function saveDraft(sql: string): void {
-  try {
-    localStorage.setItem(DRAFT_KEY, sql)
-  } catch {
-    // 忽略：持久化失败不影响编辑
-  }
-}
 
 /**
  * 表名自动补全源：FROM/JOIN/UPDATE/INTO 后输入时直接弹表名。
@@ -43,23 +31,21 @@ function tableCompletionSource(
   }
 }
 
+/** 草稿防抖保存间隔（避免每次按键都写 views.db） */
+const DRAFT_SAVE_DEBOUNCE_MS = 500
+
 /**
  * 查询页（SQL 控制台）：
  * - 上方 CodeMirror 编辑器（SQL 高亮 + 表/列补全，数据源来自表清单）
  * - 执行：按钮或 Cmd/Ctrl+Enter，取**选中文本**（无选区则取光标所在行）
  * - 下方结果表（前端分页，NULL/BLOB 安全展示，最多 1000 行）
+ * - 草稿持久化：内容防抖保存到服务端 views.db（跨会话/重启不丢）
  */
 export default function QueryPage() {
   const { schemas } = useSchemas()
   const editorRef = useRef<ReactCodeMirrorRef>(null)
-  // 草稿持久化：localStorage 按 origin（含端口）隔离，同一会话内刷新/切页不丢
-  const [sqlText, setSqlText] = useState(() => {
-    try {
-      return localStorage.getItem(DRAFT_KEY) ?? ''
-    } catch {
-      return ''
-    }
-  })
+  const saveTimer = useRef<number | null>(null)
+  const [sqlText, setSqlText] = useState('')
   const [result, setResult] = useState<QueryResult | null>(null)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -121,15 +107,42 @@ export default function QueryPage() {
     ]
   }, [sqlSchema, tableNames, executeView])
 
-  // 初次给一行示例 SQL，方便直接回车执行
+  // 初始化编辑器内容：优先服务端草稿（跨会话保留），无草稿给一行示例 SQL
   useEffect(() => {
-    if (schemas && schemas.length > 0) {
-      // 微任务中 setState，规避 react-hooks/set-state-in-effect 规则
-      queueMicrotask(() => {
-        setSqlText(prev => (prev === '' ? `SELECT * FROM ${schemas[0].name} LIMIT 20` : prev))
+    if (!schemas || schemas.length === 0) return
+    let cancelled = false
+    fetchDraft()
+      .then(({ sql }) => {
+        if (cancelled) return
+        // 微任务中 setState，规避 react-hooks/set-state-in-effect 规则
+        queueMicrotask(() => {
+          setSqlText(prev =>
+            prev === '' ? sql || `SELECT * FROM ${schemas[0].name} LIMIT 20` : prev
+          )
+        })
       })
+      .catch(() => {})
+    return () => {
+      cancelled = true
     }
   }, [schemas])
+
+  // 卸载时清理未触发的防抖定时器
+  useEffect(
+    () => () => {
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current)
+    },
+    []
+  )
+
+  /** 编辑器内容变化：立即更新 UI，防抖保存草稿到服务端 views.db */
+  const handleSqlChange = useCallback((value: string) => {
+    setSqlText(value)
+    if (saveTimer.current !== null) clearTimeout(saveTimer.current)
+    saveTimer.current = window.setTimeout(() => {
+      saveDraft(value).catch(() => {}) // 保存失败静默，不影响编辑
+    }, DRAFT_SAVE_DEBOUNCE_MS)
+  }, [])
 
   const columns = useMemo(
     () => [
@@ -163,10 +176,7 @@ export default function QueryPage() {
           value={sqlText}
           height="200px"
           extensions={extensions}
-          onChange={value => {
-            setSqlText(value)
-            saveDraft(value)
-          }}
+          onChange={handleSqlChange}
         />
         <div className="query-toolbar">
           <Space size="middle">

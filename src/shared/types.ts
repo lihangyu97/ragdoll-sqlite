@@ -107,3 +107,12 @@ export interface QueryResult {
   total: number
   truncated: boolean
 }
+
+/** 自定义视图（保存的命名 SQL，存于应用自己的 views.db） */
+export interface CustomView {
+  id: number
+  name: string
+  sql: string
+  createdAt: string
+  updatedAt: string
+}

@@ -108,8 +108,12 @@ RAGDOLL_DB=./data/app.db pnpm dev:server
 | `GET /api/tables/:name/rows?page=&pageSize=` | 分页数据（可选 `filter` / `sortBy` / `sortDir` 参数）        |
 | `POST /api/query`                            | 只读 SQL 查询（仅 SELECT/WITH/EXPLAIN/VALUES，上限 1000 行） |
 | `POST /api/refresh`                          | 清空行数缓存（外部可能改过库）                               |
+| `GET/POST /api/views`                        | 自定义视图：列表 / 新建（body: `{name, sql}`）               |
+| `PUT/DELETE /api/views/:id`                  | 自定义视图：更新 / 删除                                      |
 
 所有请求需携带访问令牌 `?t=<token>`（CLI 启动时生成，拼在页面 URL 中）。
+
+自定义视图等**应用数据**存于应用自己的 `~/.ragdoll-sqlite/views.db`（与被浏览的数据库完全隔离，用户库始终保持只读）；打开失败时该功能降级不可用，不影响其他功能。
 
 ## Roadmap
 

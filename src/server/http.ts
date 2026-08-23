@@ -13,6 +13,7 @@ import {
   handleTables
 } from './api.js'
 import type { SqliteDb } from './db.js'
+import type { ViewsStore } from './views.js'
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -39,6 +40,8 @@ export interface ServerOptions {
   webDir: string
   dev: boolean
   port?: number
+  /** 应用存储（自定义视图等）；null 表示不可用（打开失败时降级） */
+  views?: ViewsStore | null
 }
 
 export async function startServer(options: ServerOptions): Promise<ServerHandle> {
@@ -111,6 +114,16 @@ async function handleRequest(
         }
         throw err
       }
+      return
+    }
+    // 自定义视图（应用存储）
+    if (pathname === '/api/views' || /^\/api\/views\/\d+$/.test(pathname)) {
+      await handleViewsApi(options.views ?? null, pathname, req, res)
+      return
+    }
+    // SQL 编辑器草稿（应用存储）
+    if (pathname === '/api/draft') {
+      await handleDraftApi(options.views ?? null, req, res)
       return
     }
     await handleApi(options.db, pathname, url, res)
@@ -217,6 +230,109 @@ function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown> | n
     })
     req.on('error', reject)
   })
+}
+
+/** SQL 编辑器草稿：GET 读取、PUT 保存（单行，跨会话保留） */
+async function handleDraftApi(
+  store: ViewsStore | null,
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  if (!store) {
+    sendJson(res, 500, { error: '应用存储不可用（views.db 打开失败）' })
+    return
+  }
+  try {
+    if (req.method === 'GET') {
+      sendJson(res, 200, { sql: store.getDraft() })
+      return
+    }
+    if (req.method === 'PUT') {
+      const body = (await readJsonBody(req)) ?? {}
+      const sql = typeof body.sql === 'string' ? body.sql : ''
+      store.saveDraft(sql)
+      sendJson(res, 200, { ok: true })
+      return
+    }
+    throw new ApiError(405, 'Method Not Allowed')
+  } catch (err) {
+    if (err instanceof ApiError) {
+      sendJson(res, err.status, { error: err.message })
+      return
+    }
+    throw err
+  }
+}
+
+/** 自定义视图 CRUD：GET/POST /api/views、PUT/DELETE /api/views/:id */
+async function handleViewsApi(
+  store: ViewsStore | null,
+  pathname: string,
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  if (!store) {
+    sendJson(res, 500, { error: '应用存储不可用（views.db 打开失败）' })
+    return
+  }
+  const match = pathname.match(/^\/api\/views\/(\d+)$/)
+  const id = match ? Number(match[1]) : null
+  try {
+    if (id === null) {
+      if (req.method === 'GET') {
+        sendJson(res, 200, store.list())
+      } else if (req.method === 'POST') {
+        const body = (await readJsonBody(req)) ?? {}
+        const name = typeof body.name === 'string' ? body.name.trim() : ''
+        const sql = typeof body.sql === 'string' ? body.sql.trim() : ''
+        if (!name || !sql) throw new ApiError(400, 'name 与 sql 不能为空')
+        try {
+          sendJson(res, 201, store.create(name, sql))
+        } catch {
+          throw new ApiError(400, `自定义视图「${name}」已存在`)
+        }
+      } else {
+        throw new ApiError(405, 'Method Not Allowed')
+      }
+      return
+    }
+    if (req.method === 'PUT') {
+      const body = (await readJsonBody(req)) ?? {}
+      const patch: { name?: string; sql?: string } = {}
+      if (body.name !== undefined) {
+        const name = typeof body.name === 'string' ? body.name.trim() : ''
+        if (!name) throw new ApiError(400, 'name 不能为空')
+        patch.name = name
+      }
+      if (body.sql !== undefined) {
+        const sql = typeof body.sql === 'string' ? body.sql.trim() : ''
+        if (!sql) throw new ApiError(400, 'sql 不能为空')
+        patch.sql = sql
+      }
+      if (Object.keys(patch).length === 0) throw new ApiError(400, '没有可更新的字段')
+      try {
+        sendJson(res, 200, store.update(id, patch))
+      } catch (err) {
+        const msg = (err as Error).message
+        throw new ApiError(msg.includes('已存在') ? 400 : 404, msg)
+      }
+    } else if (req.method === 'DELETE') {
+      try {
+        store.remove(id)
+      } catch (err) {
+        throw new ApiError(404, (err as Error).message)
+      }
+      sendJson(res, 200, { ok: true })
+    } else {
+      throw new ApiError(405, 'Method Not Allowed')
+    }
+  } catch (err) {
+    if (err instanceof ApiError) {
+      sendJson(res, err.status, { error: err.message })
+      return
+    }
+    throw err
+  }
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
