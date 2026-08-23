@@ -65,24 +65,25 @@ describe('HTTP API（真实服务器）', () => {
     )
   })
 
-  it('GET /api/overview：返回每表行数、总行数与库文件大小', async () => {
-    const res = await fetch(`${base()}/api/overview?t=${token}`)
+  it('GET /api/databases：当前库信息（行数/大小/每表行数）', async () => {
+    const res = await fetch(`${base()}/api/databases?t=${token}`)
     assert.equal(res.status, 200)
     const data = (await res.json()) as {
-      dbSizeBytes: number
-      totalRows: number
-      tables: Array<{ name: string; type: string; rowCount: number }>
+      current: {
+        dbSizeBytes: number
+        totalRows: number
+        tableCount: number
+        tables: Array<{ name: string; type: string; rowCount: number }>
+      }
+      recent: unknown[]
     }
-    assert.ok(data.dbSizeBytes > 0, '库文件大小应为正数')
-    assert.equal(data.totalRows, 5) // users 2 + orders 2 + 特殊表 1
-    assert.equal(data.tables.length, 3)
-    const users = data.tables.find(t => t.name === 'users')!
+    assert.ok(data.current.dbSizeBytes > 0, '库文件大小应为正数')
+    assert.equal(data.current.totalRows, 5) // users 2 + orders 2 + 特殊表 1
+    assert.equal(data.current.tableCount, 3) // users + orders + 特殊表
+    assert.equal(data.current.tables.length, 3)
+    const users = data.current.tables.find(t => t.name === 'users')!
     assert.equal(users.rowCount, 2)
-    // 行数走缓存：重复调用 totalRows 一致
-    const again = (await (await fetch(`${base()}/api/overview?t=${token}`)).json()) as {
-      totalRows: number
-    }
-    assert.equal(again.totalRows, 5)
+    assert.ok(Array.isArray(data.recent))
   })
 
   it('表结构接口返回行数与字段', async () => {

@@ -70,8 +70,12 @@
 
 ## 其他已讨论、未定稿的规划
 
-- **路由（已实现 ✅）**：引入 react-router（HashRouter），路由表为 `/table?table=`（表数据页，表/视图共用 `TableView`，`?table=` 参数决定查哪张表）、`/home`（主页）、`/query`（查询）；token 留在 hash 外的 `?t=` 中不受路由影响；hash 路由无需服务端 SPA fallback。实现时顺带修复：表名含 `/` 时 API 路径解码 bug（改为按编码路径匹配、捕获组再解码）
+- **路由（已实现 ✅）**：引入 react-router（HashRouter），路由表为 `/table?table=`（表数据页，表/视图共用 `TableView`）、`/table?viewId=`（自定义视图页）、`/home`（主页）、`/query`（查询）；token 留在 hash 外的 `?t=` 中不受路由影响；hash 路由无需服务端 SPA fallback。实现时顺带修复：表名含 `/` 时 API 路径解码 bug（改为按编码路径匹配、捕获组再解码）
+- **URL 直达（已实现 ✅）**：`#/table?table=<name>`、`#/table?viewId=<id>`；若需跨重启可书签，配套"固定端口 + 稳定 token（按 db 路径派生）"
+- **SQL 查询控制台（已实现 ✅）**：CodeMirror 6 编辑器（SQL 高亮 + 表/列补全 + 自动表名补全）、执行选中行/光标所在行（按钮或 Cmd/Ctrl+Enter）、结果预览（前端分页，上限 1000 行）；服务端 `POST /api/query` 只读白名单（SELECT/WITH/EXPLAIN/VALUES）+ 防注入
+- **自定义视图（已实现 ✅）**：查询页「保存为视图」→ 存应用存储 views.db → 左侧「自定义视图」菜单直达（`/table?viewId=`），视图页展示 SQL + 结果表，可编辑名称/SQL、删除
+- **SQL 草稿持久化（已实现 ✅）**：编辑器内容防抖保存到 views.db，跨会话（重启工具/换端口）不丢
+- **多库切换（已实现 ✅）**：主页展示当前库路径（可复制）+ 切换数据库（手动输入路径 / 最近打开列表，跨会话保留）；`SqliteDb.reopen` 只读打开新库
+- **主页库总览（已实现 ✅）**：统计条 + 表卡片直达 + 当前库信息
 - **顶部历史页签栏**：打开过的表/视图做成可切换、可关闭的页签（antd `Tabs editable-card`）；基于现有路由，每开一个表 = 一个 `#/table?table=<name>` URL，天然支持
-- **URL 直达（已实现 ✅）**：`#/table?table=<name>`；若需跨重启可书签，配套"固定端口 + 稳定 token（按 db 路径派生）"
-- **SQL 查询控制台**：「查询」菜单占位页，后续接编辑器 + 服务端只读 SELECT 接口（沿用防注入模型）
-- **主页图表**：「主页」菜单占位页，后续接图表
+- **主页图表**：在库总览之上叠加图表（如行数分布），规划中

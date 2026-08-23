@@ -4,5 +4,6 @@
     "rootDir": ".",
     "outDir": "dist-test"
   },
-  "include": ["src/server", "src/shared", "test"]
+  "include": ["src/server", "src/shared", "test"],
+  "exclude": ["test/client"]
 }
