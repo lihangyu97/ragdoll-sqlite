@@ -408,6 +408,87 @@ describe('HTTP API（真实服务器）', () => {
   })
 })
 
+describe('启动时不指定数据库（db: null）', () => {
+  let noDbHandle: ServerHandle
+  let noDbToken: string
+
+  const base = () => `http://127.0.0.1:${noDbHandle.port}`
+
+  before(async () => {
+    noDbHandle = await startServer({
+      db: null,
+      webDir: path.join(dir, 'web'),
+      dev: false,
+      views: ViewsStore.open(path.join(dir, 'views-no-db.db'))
+    })
+    noDbToken = new URL(noDbHandle.url).searchParams.get('t') ?? ''
+  })
+
+  after(async () => {
+    await noDbHandle.close()
+  })
+
+  it('GET /api/databases：current 为 null 且带最近打开列表', async () => {
+    const res = await fetch(`${base()}/api/databases?t=${noDbToken}`)
+    assert.equal(res.status, 200)
+    const data = (await res.json()) as { current: unknown; recent: unknown[] }
+    assert.equal(data.current, null)
+    assert.ok(Array.isArray(data.recent))
+  })
+
+  it('需要数据库的接口返回 409（表清单/查询/刷新）', async () => {
+    const tables = await fetch(`${base()}/api/tables?t=${noDbToken}`)
+    assert.equal(tables.status, 409)
+    const query = await fetch(`${base()}/api/query?t=${noDbToken}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: 'SELECT 1' })
+    })
+    assert.equal(query.status, 409)
+    const refresh = await fetch(`${base()}/api/refresh?t=${noDbToken}`, { method: 'POST' })
+    assert.equal(refresh.status, 409)
+  })
+
+  it('switch 空路径/非法路径返回 400，且失败后仍无库', async () => {
+    const post = (body: unknown) =>
+      fetch(`${base()}/api/databases/switch?t=${noDbToken}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+    assert.equal((await post({ path: '' })).status, 400)
+    assert.equal((await post({ path: path.join(dir, 'nope.db') })).status, 400)
+    const info = (await (await fetch(`${base()}/api/databases?t=${noDbToken}`)).json()) as {
+      current: unknown
+    }
+    assert.equal(info.current, null)
+  })
+
+  it('POST /api/databases/switch：打开成功后表清单可用', async () => {
+    const sw = await fetch(`${base()}/api/databases/switch?t=${noDbToken}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: dbPath })
+    })
+    assert.equal(sw.status, 200)
+    const swData = (await sw.json()) as { current: { path: string; tableCount: number } }
+    assert.equal(swData.current.path, dbPath)
+    assert.equal(swData.current.tableCount, 3)
+
+    // 切换后表清单可用
+    const tables = await fetch(`${base()}/api/tables?t=${noDbToken}`)
+    assert.equal(tables.status, 200)
+    const list = (await tables.json()) as Array<{ name: string }>
+    assert.equal(list.length, 3)
+
+    // 最近打开记录新路径
+    const info = (await (await fetch(`${base()}/api/databases?t=${noDbToken}`)).json()) as {
+      recent: Array<{ path: string }>
+    }
+    assert.ok(info.recent.some(r => r.path === dbPath))
+  })
+})
+
 describe('db.rows 内部钳制', () => {
   it('pageSize 超 MAX_PAGE_SIZE 被钳制（不经 API 校验路径）', () => {
     const db = SqliteDb.open(dbPath)

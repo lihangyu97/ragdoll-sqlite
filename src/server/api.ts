@@ -7,8 +7,7 @@ import type {
   TableInfo,
   TableSchemaEntry
 } from '../shared/types.js'
-import type { SqliteDb } from './db.js'
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from './db.js'
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, SqliteDb } from './db.js'
 import type { ViewsStore } from './views.js'
 
 /** 带 HTTP 状态码的业务错误 */
@@ -26,8 +25,10 @@ export function handleTables(db: SqliteDb): TableSchemaEntry[] {
   return db.listSchemas()
 }
 
-/** 当前数据库信息 + 最近打开列表（主页展示/切换用） */
-export function handleDatabaseInfo(db: SqliteDb, views: ViewsStore | null): DatabaseInfo {
+/** 当前数据库信息 + 最近打开列表（主页展示/切换用）；未打开数据库时 current 为 null */
+export function handleDatabaseInfo(db: SqliteDb | null, views: ViewsStore | null): DatabaseInfo {
+  const recent = views ? views.listRecentDatabases() : []
+  if (!db) return { current: null, recent }
   const overview = db.overview()
   return {
     current: {
@@ -38,25 +39,39 @@ export function handleDatabaseInfo(db: SqliteDb, views: ViewsStore | null): Data
       totalRows: overview.totalRows,
       tables: overview.tables
     },
-    recent: views ? views.listRecentDatabases() : []
+    recent
   }
 }
 
-/** 切换数据库：只读打开新库（完整校验）并记录最近打开 */
+/**
+ * 切换数据库：只读打开新库（完整校验）并记录最近打开。
+ * 已打开过库时复用连接（reopen）；未打开过（db 为 null）则新建连接。
+ * 返回新库连接 + 切换后的信息，由调用方持有新连接。
+ */
 export function handleSwitchDatabase(
-  db: SqliteDb,
+  db: SqliteDb | null,
   views: ViewsStore | null,
   path: string
-): DatabaseInfo {
+): { db: SqliteDb; info: DatabaseInfo } {
   const trimmed = path.trim()
   if (!trimmed) throw new ApiError(400, '请输入数据库路径')
-  try {
-    db.reopen(trimmed)
-  } catch (err) {
-    throw new ApiError(400, (err as Error).message)
+  let next: SqliteDb
+  if (db) {
+    try {
+      db.reopen(trimmed)
+      next = db
+    } catch (err) {
+      throw new ApiError(400, (err as Error).message)
+    }
+  } else {
+    try {
+      next = SqliteDb.open(trimmed)
+    } catch (err) {
+      throw new ApiError(400, (err as Error).message)
+    }
   }
   views?.addRecentDatabase(trimmed)
-  return handleDatabaseInfo(db, views)
+  return { db: next, info: handleDatabaseInfo(next, views) }
 }
 
 /** 只读查询（SQL 控制台） */

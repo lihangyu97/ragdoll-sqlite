@@ -48,6 +48,7 @@ export default function HomePage() {
   const { schemas, refresh: refreshSchemas } = useSchemas()
   const navigate = useNavigate()
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null)
+  const [dbInfoLoading, setDbInfoLoading] = useState(true)
   const [switchOpen, setSwitchOpen] = useState(false)
   const [switchPath, setSwitchPath] = useState('')
   const [switching, setSwitching] = useState(false)
@@ -56,6 +57,7 @@ export default function HomePage() {
     fetchDatabases()
       .then(setDbInfo)
       .catch(() => setDbInfo(null)) // 失败不阻塞主页
+      .finally(() => setDbInfoLoading(false))
   }, [])
 
   /** 执行切换：手动输入或最近打开列表点击 */
@@ -94,16 +96,107 @@ export default function HomePage() {
     }
   }, [dbInfo, message])
 
-  if (schemas === null) return null
+  // 切换数据库弹窗：主页两种状态（未打开库的引导 / Dashboard）共用
+  const switchModal = (
+    <Modal
+      title="切换数据库"
+      open={switchOpen}
+      onCancel={() => setSwitchOpen(false)}
+      footer={null}
+      destroyOnHidden
+    >
+      <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
+        <Input
+          autoFocus
+          placeholder="输入数据库文件路径（如 /data/app.db）"
+          value={switchPath}
+          onChange={e => setSwitchPath(e.target.value)}
+          onPressEnter={() => handleSwitch()}
+        />
+        <Button type="primary" loading={switching} onClick={() => handleSwitch()}>
+          打开
+        </Button>
+      </Space.Compact>
+      {dbInfo && dbInfo.recent.length > 0 && (
+        <>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            最近打开
+          </Typography.Text>
+          <List
+            size="small"
+            dataSource={dbInfo.recent}
+            renderItem={item => (
+              <List.Item style={{ cursor: 'pointer' }} onClick={() => handleSwitch(item.path)}>
+                <Typography.Text ellipsis style={{ maxWidth: 420 }}>
+                  {item.path}
+                </Typography.Text>
+              </List.Item>
+            )}
+          />
+        </>
+      )}
+      {switching && (
+        <div className="loading-wrap">
+          <Spin size="large" />
+        </div>
+      )}
+    </Modal>
+  )
+
+  // 等表清单与库信息都就绪再渲染（避免「未打开数据库」提示闪现）
+  if (schemas === null || dbInfoLoading) return null
 
   const current = dbInfo?.current ?? null
+
+  // ---- 未打开任何数据库：主页展示选择引导 ----
+  if (!current) {
+    return (
+      <div className="home-no-db">
+        <DatabaseOutlined className="home-no-db-icon" />
+        <Typography.Title level={4} className="home-no-db-title">
+          尚未打开数据库
+        </Typography.Title>
+        <Typography.Text type="secondary" className="home-no-db-desc">
+          选择最近打开的文件，或输入一个 SQLite 数据库的路径即可开始浏览（只读）
+        </Typography.Text>
+        <Button type="primary" icon={<SwapOutlined />} onClick={() => setSwitchOpen(true)}>
+          选择数据库
+        </Button>
+        {dbInfo && dbInfo.recent.length > 0 && (
+          <div className="home-no-db-recent">
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              最近打开
+            </Typography.Text>
+            <List
+              size="small"
+              dataSource={dbInfo.recent}
+              renderItem={item => (
+                <List.Item style={{ cursor: 'pointer' }} onClick={() => handleSwitch(item.path)}>
+                  <Typography.Text ellipsis style={{ maxWidth: 420 }}>
+                    {item.path}
+                  </Typography.Text>
+                </List.Item>
+              )}
+            />
+          </div>
+        )}
+        {switchModal}
+      </div>
+    )
+  }
+
   const tableCount = schemas.filter(s => s.type === 'table').length
   const viewCount = schemas.length - tableCount
   const dbSize = current ? formatBytes(current.dbSizeBytes) : null
   const rowCountOf = (name: string) => current?.tables.find(t => t.name === name)?.rowCount
 
   if (schemas.length === 0) {
-    return <Empty description="数据库中没有表或视图" style={{ marginTop: 120 }} />
+    return (
+      <>
+        <Empty description="数据库中没有表或视图" style={{ marginTop: 120 }} />
+        {switchModal}
+      </>
+    )
   }
 
   return (
@@ -190,50 +283,7 @@ export default function HomePage() {
         <DatabaseOutlined /> 点击卡片进入对应表/视图（只读）
       </div>
 
-      {/* 切换数据库 */}
-      <Modal
-        title="切换数据库"
-        open={switchOpen}
-        onCancel={() => setSwitchOpen(false)}
-        footer={null}
-        destroyOnHidden
-      >
-        <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
-          <Input
-            autoFocus
-            placeholder="输入数据库文件路径（如 /data/app.db）"
-            value={switchPath}
-            onChange={e => setSwitchPath(e.target.value)}
-            onPressEnter={() => handleSwitch()}
-          />
-          <Button type="primary" loading={switching} onClick={() => handleSwitch()}>
-            打开
-          </Button>
-        </Space.Compact>
-        {dbInfo && dbInfo.recent.length > 0 && (
-          <>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              最近打开
-            </Typography.Text>
-            <List
-              size="small"
-              dataSource={dbInfo.recent}
-              renderItem={item => (
-                <List.Item style={{ cursor: 'pointer' }} onClick={() => handleSwitch(item.path)}>
-                  <Typography.Text ellipsis style={{ maxWidth: 420 }}>
-                    {item.path}
-                  </Typography.Text>
-                </List.Item>
-              )}
-            />
-          </>
-        )}
-        {switching && (
-          <div className="loading-wrap">
-            <Spin size="large" />
-          </div>
-        )}
-      </Modal>
+      {switchModal}
     </div>
   )
 }

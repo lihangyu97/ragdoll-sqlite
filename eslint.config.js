@@ -17,5 +17,16 @@ export default defineConfig([
       ...reactHooks.configs.recommended.rules
     }
   },
+  // 仓库内 Node 脚本（如 scripts/mock-data.mjs）声明 Node 全局
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        Buffer: 'readonly',
+        console: 'readonly'
+      }
+    }
+  },
   prettier
 ])

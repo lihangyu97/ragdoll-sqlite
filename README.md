@@ -1,6 +1,6 @@
 # RagdollSqlite
 
-命令行工具：`ragdoll-sqlite <sqlite 路径>` 启动一个本地只读 Web 页面，在浏览器中浏览 SQLite 数据库的表、视图、结构与数据。
+命令行工具：`ragdoll-sqlite [sqlite 路径]` 启动一个本地只读 Web 页面，在浏览器中浏览 SQLite 数据库的表、视图、结构与数据。数据库路径**可选**——不传也能启动，进入页面后在主页选择/切换数据库。
 
 ![截图](docs/screenshot.png)
 
@@ -12,7 +12,7 @@
 - 📄 分页浏览数据（默认 10 条/页，最大 50），NULL / BLOB / 中文 / emoji 安全展示；按列查询/过滤、排序、隐藏列
 - 🔍 单元格 hover 弹 Popover 看完整内容（BLOB 含 hex 预览）；点击行弹出全字段详情
 - 🏠 主页库总览：表/视图统计 + 表卡片直达 + 当前库路径展示
-- 🔀 **多库切换**：主页切换数据库（手动输入路径 / 最近打开列表，跨会话保留）
+- 🔀 **多库切换**：启动时可省略数据库路径，主页选择/切换数据库（手动输入路径 / 最近打开列表，跨会话保留）
 - ⌨️ **SQL 控制台**：CodeMirror 编辑器（高亮 + 表/列补全）、选中行执行、结果预览；SQL 草稿跨会话保留
 - 📌 **自定义视图**：把查询保存为命名视图，左侧菜单直达，可编辑/删除（存 views.db）
 - 🛡️ 只监听 `127.0.0.1` + 随机端口 + 随机 token 校验，防止本机其他进程探测
@@ -24,8 +24,9 @@
 pnpm install
 pnpm build
 
-# 方式一：本地运行
+# 方式一：本地运行（数据库路径可选，不传则启动后在主页选择）
 node dist/cli.js ./path/to/database.db
+node dist/cli.js                      # 不带路径，启动后主页选库
 
 # 方式二：全局安装后直接使用
 npm i -g .
@@ -47,7 +48,7 @@ pnpm dev:server     # 开发模式后端（固定端口 7860，跳过 token 校�
 pnpm dev:web        # vite dev server（5173，/api 代理到 7860），前端热更新
 ```
 
-开发模式：先跑 `pnpm dev:server`，再跑 `pnpm dev:web`，浏览器打开 `http://127.0.0.1:5173/?t=dev`。指定要打开的数据库：
+开发模式：先跑 `pnpm dev:server`，再跑 `pnpm dev:web`，浏览器打开 `http://127.0.0.1:5173/?t=dev`。指定要打开的数据库（可选，不指定则在主页选择）：
 
 ```bash
 # 方式一：位置参数直接跟在命令后面（最简）
@@ -55,6 +56,9 @@ pnpm dev:server ./data/app.db
 
 # 方式二：环境变量 RAGDOLL_DB（未传位置参数时生效）
 RAGDOLL_DB=./data/app.db pnpm dev:server
+
+# 方式三：不带路径启动，进入页面后在主页选择/切换数据库
+pnpm dev:server
 ```
 
 前端路径别名（仅前端使用，服务端保持相对导入；`vite.config.ts` 与 `tsconfig.json` 两处需保持一致）：

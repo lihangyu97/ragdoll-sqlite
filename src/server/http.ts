@@ -37,7 +37,8 @@ export interface ServerHandle {
 }
 
 export interface ServerOptions {
-  db: SqliteDb
+  /** 已打开的数据库连接；null 表示启动时未指定数据库（主页选择后建立） */
+  db: SqliteDb | null
   webDir: string
   dev: boolean
   port?: number
@@ -97,7 +98,7 @@ async function handleRequest(
       sendJson(res, 200, handleDatabaseInfo(options.db, options.views ?? null))
       return
     }
-    // 切换数据库（只读打开新库）
+    // 切换数据库（只读打开新库；未打开过库时首次建立连接）
     if (pathname === '/api/databases/switch') {
       if (req.method !== 'POST') {
         sendJson(res, 405, { error: 'Method Not Allowed' })
@@ -106,7 +107,9 @@ async function handleRequest(
       const body = await readJsonBody(req)
       const path = typeof body?.path === 'string' ? body.path : ''
       try {
-        sendJson(res, 200, handleSwitchDatabase(options.db, options.views ?? null, path))
+        const { db, info } = handleSwitchDatabase(options.db, options.views ?? null, path)
+        options.db = db // 替换连接引用，后续请求使用新库
+        sendJson(res, 200, info)
       } catch (err) {
         if (err instanceof ApiError) {
           sendJson(res, err.status, { error: err.message })
@@ -122,7 +125,15 @@ async function handleRequest(
         sendJson(res, 405, { error: 'Method Not Allowed' })
         return
       }
-      handleRefresh(options.db)
+      try {
+        handleRefresh(requireDb(options.db))
+      } catch (err) {
+        if (err instanceof ApiError) {
+          sendJson(res, err.status, { error: err.message })
+          return
+        }
+        throw err
+      }
       sendJson(res, 200, { ok: true })
       return
     }
@@ -135,7 +146,7 @@ async function handleRequest(
       const body = await readJsonBody(req)
       const sql = typeof body?.sql === 'string' ? body.sql : ''
       try {
-        sendJson(res, 200, handleQuery(options.db, sql))
+        sendJson(res, 200, handleQuery(requireDb(options.db), sql))
       } catch (err) {
         if (err instanceof ApiError) {
           sendJson(res, err.status, { error: err.message })
@@ -174,20 +185,21 @@ async function handleRequest(
 }
 
 async function handleApi(
-  db: SqliteDb,
+  db: SqliteDb | null,
   pathname: string,
   url: URL,
   res: ServerResponse
 ): Promise<void> {
   try {
+    const current = requireDb(db)
     if (pathname === '/api/tables') {
-      sendJson(res, 200, handleTables(db))
+      sendJson(res, 200, handleTables(current))
       return
     }
     const rowsMatch = pathname.match(/^\/api\/tables\/([^/]+)\/rows$/)
     if (rowsMatch) {
       const result = handleRows(
-        db,
+        current,
         decodeURIComponent(rowsMatch[1]),
         url.searchParams.get('page'),
         url.searchParams.get('pageSize'),
@@ -200,7 +212,7 @@ async function handleApi(
     }
     const infoMatch = pathname.match(/^\/api\/tables\/([^/]+)$/)
     if (infoMatch) {
-      sendJson(res, 200, handleTableInfo(db, decodeURIComponent(infoMatch[1])))
+      sendJson(res, 200, handleTableInfo(current, decodeURIComponent(infoMatch[1])))
       return
     }
     throw new ApiError(404, 'Not Found')
@@ -211,6 +223,12 @@ async function handleApi(
     }
     throw err
   }
+}
+
+/** 需要数据库的操作统一在此校验：未打开数据库时返回 409（客户端在主页引导选择） */
+function requireDb(db: SqliteDb | null): SqliteDb {
+  if (!db) throw new ApiError(409, '尚未打开数据库，请先在主页选择数据库文件')
+  return db
 }
 
 async function serveStatic(webDir: string, pathname: string, res: ServerResponse): Promise<void> {

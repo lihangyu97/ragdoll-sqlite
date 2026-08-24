@@ -9,7 +9,8 @@ import { startServer } from './server/http.js'
 import { ViewsStore } from './server/views.js'
 
 interface CliOptions {
-  dbPath: string
+  /** 启动时指定的数据库路径；null 表示未指定（启动后在主页选择） */
+  dbPath: string | null
   dev: boolean
   port: number | null
   open: boolean
@@ -49,9 +50,14 @@ function parseArgs(argv: string[], envDb?: string): CliOptions | { error: string
   }
   // 未传位置参数时，回退到 RAGDOLL_DB 环境变量（便于 dev 脚本指定数据库）
   if (positional.length === 0 && envDb) positional.push(envDb)
-  if (positional.length === 0) return { error: '缺少 SQLite 数据库路径参数' }
+  // 数据库路径可选：未指定时也能启动，进入页面后在主页选择/切换数据库
   if (positional.length > 1) return { error: `参数过多: ${positional.slice(1).join(' ')}` }
-  return { dbPath: positional[0], dev, port, open }
+  return {
+    dbPath: positional.length === 1 ? positional[0] : null,
+    dev,
+    port,
+    open
+  }
 }
 
 function printUsage(): void {
@@ -59,9 +65,10 @@ function printUsage(): void {
 ragdoll-sqlite - 在浏览器中只读浏览 SQLite 数据库
 
 用法:
-  ragdoll-sqlite <sqlite 路径> [选项]
+  ragdoll-sqlite [sqlite 路径] [选项]
 
-数据库路径也可通过环境变量 RAGDOLL_DB 指定（未传位置参数时生效）:
+数据库路径可选：未指定时也能启动，进入页面后在主页选择/切换数据库。
+路径也可通过环境变量 RAGDOLL_DB 指定（未传位置参数时生效）:
   RAGDOLL_DB=./data/app.db ragdoll-sqlite [选项]
 
 选项:
@@ -98,21 +105,23 @@ async function main(): Promise<void> {
 
   const { dbPath, dev, port, open } = parsed
 
-  if (!existsSync(dbPath)) {
-    console.error(`错误: 文件不存在: ${dbPath}`)
-    process.exit(1)
-  }
-  if (!statSync(dbPath).isFile()) {
-    console.error(`错误: 不是文件: ${dbPath}`)
-    process.exit(1)
-  }
-
-  let db: SqliteDb
-  try {
-    db = SqliteDb.open(dbPath)
-  } catch (err) {
-    console.error(`错误: ${(err as Error).message}`)
-    process.exit(1)
+  // 数据库连接：启动时未指定路径则为 null，进入页面后在主页选择/切换
+  let db: SqliteDb | null = null
+  if (dbPath) {
+    if (!existsSync(dbPath)) {
+      console.error(`错误: 文件不存在: ${dbPath}`)
+      process.exit(1)
+    }
+    if (!statSync(dbPath).isFile()) {
+      console.error(`错误: 不是文件: ${dbPath}`)
+      process.exit(1)
+    }
+    try {
+      db = SqliteDb.open(dbPath)
+    } catch (err) {
+      console.error(`错误: ${(err as Error).message}`)
+      process.exit(1)
+    }
   }
 
   // 静态资源目录：dist/web（vite build 产物，与 cli.js 同级）
@@ -122,7 +131,7 @@ async function main(): Promise<void> {
   let views = null
   try {
     views = ViewsStore.open()
-    views.addRecentDatabase(dbPath) // 初始库也记入最近打开
+    if (dbPath) views.addRecentDatabase(dbPath) // 初始库也记入最近打开
   } catch (err) {
     console.warn(`警告: 应用存储打开失败，自定义视图功能不可用（${(err as Error).message}）`)
   }
@@ -133,21 +142,22 @@ async function main(): Promise<void> {
     server = await startServer({ db, webDir, dev, port: finalPort, views })
   } catch (err) {
     console.error(`错误: 无法启动服务: ${(err as Error).message}`)
-    db.close()
+    db?.close()
     views?.close()
     process.exit(1)
   }
 
+  const dbDesc = dbPath ?? '未指定（进入页面后在主页选择数据库）'
   if (dev) {
     const pageUrl = `http://127.0.0.1:5173/?t=dev`
     console.log(`\nragdoll-sqlite（开发模式）已启动`)
-    console.log(`  数据库: ${dbPath}`)
+    console.log(`  数据库: ${dbDesc}`)
     console.log(`  API 服务: http://127.0.0.1:${server.port}/`)
     console.log(`  前端页面: ${pageUrl}（请先运行 pnpm dev:web）`)
     if (open) openBrowser(pageUrl)
   } else {
     console.log(`\nragdoll-sqlite 已启动`)
-    console.log(`  数据库: ${dbPath}`)
+    console.log(`  数据库: ${dbDesc}`)
     console.log(`  访问地址: ${server.url}`)
     if (open) openBrowser(server.url)
   }
@@ -159,7 +169,7 @@ async function main(): Promise<void> {
     shuttingDown = true
     console.log('\n正在退出…')
     void server.close().then(() => {
-      db.close()
+      db?.close()
       views?.close()
       process.exit(0)
     })
