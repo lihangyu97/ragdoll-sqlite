@@ -20,15 +20,28 @@
 
 ## 安装与使用
 
+已发布到 npm，全局安装后一条命令即可启动（数据库路径可选，不传则启动后在主页选择）：
+
+```bash
+# 全局安装（npm / pnpm 任选其一）
+npm i -g ragdoll-sqlite
+# 或：pnpm add -g ragdoll-sqlite
+
+# 启动（--open 自动打开浏览器）
+ragdoll-sqlite --open
+```
+
+从源码运行 / 开发：
+
 ```bash
 pnpm install
 pnpm build
 
-# 方式一：本地运行（数据库路径可选，不传则启动后在主页选择）
+# 本地运行（数据库路径可选，不传则启动后在主页选择）
 node dist/cli.js ./path/to/database.db
 node dist/cli.js                      # 不带路径，启动后主页选库
 
-# 方式二：全局安装后直接使用
+# 本地打包后全局安装
 npm i -g .
 ragdoll-sqlite ./path/to/database.db
 ```
