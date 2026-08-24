@@ -4,3 +4,7 @@ dist-test/
 .pnpm-store/
 *.log
 .DS_Store
+
+scripts/mock-data.mjs
+
+data/
