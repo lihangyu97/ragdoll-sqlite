@@ -1,7 +1,7 @@
 {
   "name": "ragdoll-sqlite",
   "version": "0.1.0",
-  "description": "命令行工具：启动本地网页，只读浏览 SQLite 数据库",
+  "description": "命令行工具：启动本地网页，只读浏览 SQLite 数据库（数据库路径可选，启动后在主页选择）",
   "type": "module",
   "bin": {
     "ragdoll-sqlite": "dist/cli.js"
@@ -13,6 +13,21 @@
     "node": ">=20"
   },
   "packageManager": "pnpm@11.22.0",
+  "license": "MIT",
+  "keywords": [
+    "sqlite",
+    "sqlite3",
+    "database",
+    "viewer",
+    "browser",
+    "readonly",
+    "cli",
+    "sql"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lihangyu97/ragdoll-sqlite.git"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
@@ -24,7 +39,9 @@
     "dev:web": "vite dev",
     "dev:server": "tsc -p tsconfig.server.json && node dist/cli.js --dev",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepack": "pnpm run build",
+    "pack": "npm pack"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
