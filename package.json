@@ -1,6 +1,6 @@
 {
   "name": "ragdoll-sqlite",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "命令行工具：启动本地网页，只读浏览 SQLite 数据库（数据库路径可选，启动后在主页选择）",
   "type": "module",
   "bin": {
