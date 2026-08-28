@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import CellValue, { cellFullText, isBlobValue } from '@/components/CellValue'
+import CellValue, { isBlobValue } from '@/components/CellValue'
 
 describe('CellValue', () => {
   it('NULL/undefined 渲染为斜体 NULL', () => {
@@ -30,12 +30,9 @@ describe('CellValue', () => {
     expect(screen.getByText('false')).toBeTruthy()
   })
 
-  it('isBlobValue / cellFullText 工具函数', () => {
+  it('isBlobValue 工具函数', () => {
     expect(isBlobValue({ __blob: true, bytes: 1, hex: '' })).toBe(true)
     expect(isBlobValue('x')).toBe(false)
     expect(isBlobValue(null)).toBe(false)
-    expect(cellFullText(null)).toBe('NULL')
-    expect(cellFullText(123)).toBe('123')
-    expect(cellFullText({ __blob: true, bytes: 3, hex: '010203' })).toContain('BLOB(3 bytes)')
   })
 })

@@ -133,9 +133,45 @@ body,
   padding: 80px 0;
 }
 
+/* 单元格值样式（共享组件 CellValue / QueryResultTable 跨页面使用，故放全局） */
+.cell-null {
+  color: #bfbfbf;
+  font-style: italic;
+}
+
+.cell-blob {
+  color: #722ed1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.cell-text {
+  word-break: break-all;
+}
+
+.cell-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* 表格单元格文本统一截断：最长 30 个字符（1ch ≈ 一个字符宽度），超出显示省略号。
+   短内容不受影响（max-width 未触顶时宽度=内容宽度），列宽自然收缩。 */
+.cell-clip {
+  display: inline-block;
+  max-width: 30ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
 /* SQL 执行结果表（QueryResultTable，查询页与自定义视图页共用）的元信息行 */
 .query-result-meta {
   margin-bottom: 8px;
+}
+
+/* 行可点击查看详情的表格（表数据页 DataTable 与查询结果表 QueryResultTable 共用） */
+.clickable-table .ant-table-tbody > tr {
+  cursor: pointer;
 }
 
 .ant-typography {

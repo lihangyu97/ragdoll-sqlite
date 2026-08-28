@@ -1,7 +1,7 @@
 import { Descriptions, Modal, Popover, Table, Tag, type TableColumnsType } from 'antd'
 import { useState } from 'react'
 import type { ColumnInfo, RowsResult } from '@shared/types'
-import CellValue, { cellFullText } from '@/components/CellValue'
+import CellValue from '@/components/CellValue'
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50]
 
@@ -22,7 +22,7 @@ interface DataTableProps {
  *
  * 列宽完全使用 antd 原生行为：scroll.x = 'max-content' 时，
  * 内容宽则横向滚动、内容窄则表格撑满容器，无需任何自定义宽度计算。
- * 超长文本由 ellipsis 截断 + hover Popover 看全文。
+ * 超长文本由 CellValue 统一截断（最长 30 字符省略号），完整内容点击行弹出的详情查看。
  */
 export default function DataTable({
   tableName,
@@ -69,19 +69,8 @@ export default function DataTable({
       ),
       dataIndex: c.name,
       key: c.name,
-      // 关闭原生 title，统一用 Popover 展示完整内容
-      ellipsis: { showTitle: false },
-      render: (v: unknown) => (
-        // 所有单元格统一 hover Popover 看完整内容（包原生 span 让 Popover 挂载 hover 事件）
-        <Popover
-          trigger="hover"
-          content={<div className="cell-popover-content">{cellFullText(v)}</div>}
-        >
-          <span>
-            <CellValue value={v} />
-          </span>
-        </Popover>
-      )
+      // 截断统一由 CellValue 处理（最长 30 字符省略号）
+      render: (v: unknown) => <CellValue value={v} />
     }))
   ]
 

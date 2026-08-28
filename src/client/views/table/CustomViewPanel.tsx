@@ -132,7 +132,7 @@ export default function CustomViewPanel({ view }: CustomViewPanelProps) {
           <Spin size="large" />
         </div>
       ) : result ? (
-        <QueryResultTable result={result} />
+        <QueryResultTable result={result} title={view.name} />
       ) : null}
     </div>
   )

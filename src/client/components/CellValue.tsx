@@ -5,24 +5,18 @@ export function isBlobValue(value: unknown): value is BlobValue {
   return typeof value === 'object' && value !== null && (value as BlobValue).__blob === true
 }
 
-/** 单元格 hover 的完整展示文本：BLOB 带 hex 预览，其余为原始字符串 */
-export function cellFullText(value: unknown): string {
-  if (value === null || value === undefined) return 'NULL'
-  if (isBlobValue(value)) {
-    const truncated = value.bytes > 16
-    const hex = value.hex.length > 0 ? ` · hex: ${value.hex}${truncated ? '…' : ''}` : ''
-    return `BLOB(${value.bytes} bytes)${hex}${truncated ? '（仅显示前 16 字节）' : ''}`
-  }
-  return String(value)
-}
-
 interface CellValueProps {
   value: unknown
-  /** 完整模式（行详情对话框）：BLOB 展示完整 hex 预览 */
+  /** 完整模式（行详情对话框）：不截断，BLOB 展示完整 hex 预览 */
   full?: boolean
 }
 
-/** 单元格值渲染：NULL 灰显、BLOB 摘要、数字等宽（hover 的完整内容由外层 Popover 提供） */
+/**
+ * 单元格值渲染（所有数据表的统一渲染入口）：
+ * NULL 灰显、BLOB 摘要、数字等宽；
+ * 非 full 模式统一「最长 30 字符（30ch）+ 省略号」，短内容保持自然宽度。
+ * 完整内容可通过点击行弹出的详情查看（DataTable 行详情 / 查询页按需）。
+ */
 export default function CellValue({ value, full = false }: CellValueProps): ReactNode {
   if (value === null || value === undefined) {
     return <span className="cell-null">NULL</span>
@@ -46,9 +40,7 @@ export default function CellValue({ value, full = false }: CellValueProps): Reac
     return <span className="cell-blob">BLOB({value.bytes} bytes)</span>
   }
   const str = String(value)
-  return typeof value === 'number' ? (
-    <span className="cell-number">{str}</span>
-  ) : (
-    <span className="cell-text">{str}</span>
-  )
+  const cls = typeof value === 'number' ? 'cell-number' : 'cell-text'
+  // 非 full 模式：最长 30 字符 + 省略号（见全局 .cell-clip）
+  return <span className={full ? cls : `${cls} cell-clip`}>{str}</span>
 }
